@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product Data Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a33;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --accent: #c8f135;
+      --accent-dim: #c8f13520;
+      --red: #ff4d6d;
+      --red-dim: #ff4d6d20;
+      --amber: #ffb340;
+      --amber-dim: #ffb34020;
+      --green: #4dffb4;
+      --green-dim: #4dffb420;
+      --blue: #4d9fff;
+      --blue-dim: #4d9fff20;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* HEADER */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .logo span { color: var(--muted); }
+
+    /* STORE SWITCHER */
+    #store-switcher {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .store-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .store-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .store-pill.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .btn-add-store {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+    }
+    .btn-add-store:hover { opacity: 0.85; }
+
+    /* MAIN */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    /* CONNECT SCREEN */
+    #connect-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      gap: 32px;
+    }
+
+    .connect-title {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .connect-title em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .connect-sub {
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 440px;
+      line-height: 1.6;
+    }
+
+    .connect-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .connect-form input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .connect-form input:focus { border-color: var(--accent); }
+    .connect-form input::placeholder { color: var(--muted); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* LOADING */
+    #loading-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 20px;
+    }
+
+    .loading-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .progress-bar-wrap {
+      width: 320px;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* DASHBOARD */
+    #dashboard {
+      display: none;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .dash-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .store-name {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .store-name span {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .btn-rerun {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-rerun:hover { border-color: var(--text); color: var(--text); }
+
+    /* SUMMARY GRID */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .summary-card.ok::before { background: var(--green); }
+    .summary-card.warn::before { background: var(--amber); }
+    .summary-card.bad::before { background: var(--red); }
+
+    .summary-card:hover {
+      border-color: var(--muted);
+      transform: translateY(-2px);
+    }
+
+    .summary-card.active {
+      border-color: var(--accent);
+      background: var(--surface2);
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .card-count {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .summary-card.ok .card-count { color: var(--green); }
+    .summary-card.warn .card-count { color: var(--amber); }
+    .summary-card.bad .card-count { color: var(--red); }
+
+    .card-of {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* STAT STRIP */
+    .stat-strip {
+      display: flex;
+      gap: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 28px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-item + .stat-item {
+      padding-left: 24px;
+      border-left: 1px solid var(--border);
+    }
+
+    .stat-val {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* DRILLDOWN */
+    #drilldown {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drilldown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drilldown-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .btn-close-drill {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-close-drill:hover { border-color: var(--text); color: var(--text); }
+
+    .product-table {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .product-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .product-table th {
+      background: var(--surface2);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .product-table td {
+      padding: 14px 20px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .product-table tr:last-child td { border-bottom: none; }
+
+    .product-table tr:hover td { background: var(--surface2); }
+
+    .product-title-cell {
+      font-weight: 600;
+      max-width: 260px;
+    }
+
+    .product-title-cell a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .product-title-cell a:hover { color: var(--accent); }
+
+    .issue-tag {
+      display: inline-block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 2px 2px 2px 0;
+    }
+
+    .issue-tag.red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red)44; }
+    .issue-tag.amber { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber)44; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000000aa;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal h3 { font-size: 18px; font-weight: 700; }
+    .modal p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    .modal input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal input::placeholder { color: var(--muted); }
+
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+
+    /* ERROR */
+    .error-msg {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--red);
+      padding: 10px 14px;
+      background: var(--red-dim);
+      border: 1px solid var(--red)33;
+      border-radius: 6px;
+    }
+
+    /* EMPTY */
+    .empty-state {
+      padding: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* CATEGORY FEATURE */
+    .category-row { border-bottom: 1px solid var(--border); }
+    .category-row:last-child { border-bottom: none; }
+    .category-row-main {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+    }
+    .category-row-main:hover { background: var(--surface2); }
+    .cat-product-name { font-weight: 600; font-size: 14px; }
+    .cat-product-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .cat-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .btn-suggest {
+      background: var(--accent-dim); border: 1px solid var(--accent)44; color: var(--accent);
+      font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+      padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-suggest:hover { background: var(--accent); color: #000; }
+    .btn-suggest:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-apply {
+      background: var(--green-dim); border: 1px solid var(--green)44; color: var(--green);
+      font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+      padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-apply:hover { background: var(--green); color: #000; }
+    .btn-apply:disabled { opacity: 0.4; cursor: not-allowed; }
+    .applied-badge {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--green);
+      background: var(--green-dim); border: 1px solid var(--green)44; padding: 5px 10px; border-radius: 5px;
+    }
+    .suggestions-panel { padding: 0 20px 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+    .suggestions-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .suggestion-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .suggestion-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 14px; border-radius: 6px;
+      cursor: pointer; transition: all 0.15s; text-align: left; display: flex; flex-direction: column; gap: 2px;
+    }
+    .suggestion-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .suggestion-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+    .suggestion-name { font-weight: 500; }
+    .suggestion-confidence { font-size: 10px; color: var(--muted); }
+    .suggestion-btn.selected .suggestion-confidence { color: var(--accent); opacity: 0.7; }
+    .bulk-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px;
+    }
+    .bulk-bar-label { font-size: 13px; color: var(--muted); }
+    .bulk-bar-label strong { color: var(--text); }
+    .bulk-bar-actions { display: flex; gap: 8px; }
+    .btn-accept-all {
+      background: var(--accent); color: #000; border: none;
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      padding: 10px 20px; border-radius: 7px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-accept-all:hover { opacity: 0.85; }
+    .btn-accept-all:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-suggest-all {
+      background: transparent; border: 1px solid var(--accent)44; color: var(--accent);
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      padding: 10px 20px; border-radius: 7px; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-suggest-all:hover { background: var(--accent-dim); }
+    .btn-suggest-all:disabled { opacity: 0.4; cursor: not-allowed; }
+    .thinking-indicator { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); padding: 8px 0; display: flex; align-items: center; gap: 8px; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .thinking-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 1s infinite; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Data<span>Health</span></div>
+  <div id="store-switcher"></div>
+</header>
+
+<main>
+
+  <!-- CONNECT SCREEN -->
+  <div id="connect-screen">
+    <div>
+      <div class="connect-title">Product data,<br><em>laid bare.</em></div>
+    </div>
+    <p class="connect-sub">Connect a Shopify store to audit product data quality and UCP readiness.</p>
+    <div class="connect-form">
+      <input id="first-store" type="text" placeholder="yourstore.myshopify.com" />
+      <input id="first-token" type="password" placeholder="Admin API token (shpat_...)" />
+      <div id="connect-error" class="error-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="connectFirstStore()">Run Audit</button>
+    </div>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen">
+    <div id="loading-label" class="loading-label">Fetching products...</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="dash-header">
+      <div class="store-name">
+        <span id="dash-store-domain"></span>
+        <span id="dash-store-title"></span>
+      </div>
+      <button class="btn-rerun" onclick="rerunAudit()">↺ Re-run audit</button>
+    </div>
+
+    <!-- stat strip -->
+    <div class="stat-strip">
+      <div class="stat-item">
+        <div class="stat-val" id="stat-total">—</div>
+        <div class="stat-label">Active Products</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="stat-variants">—</div>
+        <div class="stat-label">Total Variants</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="stat-issues">—</div>
+        <div class="stat-label">Issues Found</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="stat-clean">—</div>
+        <div class="stat-label">Clean Products</div>
+      </div>
+    </div>
+
+    <!-- summary cards -->
+    <div class="summary-grid" id="summary-grid"></div>
+
+    <!-- drilldown -->
+    <div id="drilldown">
+      <div class="drilldown-header">
+        <div class="drilldown-title" id="drilldown-title"></div>
+        <button class="btn-close-drill" onclick="closeDrilldown()">✕ Close</button>
+      </div>
+      <div id="drilldown-content"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ADD STORE MODAL -->
+<div class="modal-overlay" id="add-store-modal">
+  <div class="modal">
+    <h3>Add a store</h3>
+    <p>Enter your store domain and an Admin API token with <strong>read_products</strong> permission.</p>
+    <input id="modal-store" type="text" placeholder="yourstore.myshopify.com" />
+    <input id="modal-token" type="password" placeholder="Admin API token (shpat_...)" />
+    <div id="modal-error" class="error-msg" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="addStore()">Connect & Audit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const stores = {}; // { domain: { token, name, results } }
+let activeStore = null;
+let activeDrilldown = null;
+
+// ─── AMBIGUOUS TERMS ─────────────────────────────────────────────────────────
+const AMBIGUOUS_TERMS = [
+  'it', 'this', 'the item', 'the product', 'click here', 'here',
+  'this product', 'learn more', 'see more', 'find out', 'this thing',
+  'our product', 'the thing', 'it\'s', 'this one'
+];
+
+const VAGUE_TITLE_PATTERNS = [
+  /^product\s*\d*$/i, /^new\s+product/i, /^untitled/i, /^test/i,
+  /^item\s*\d*$/i, /^sample/i, /^draft/i
+];
+
+// ─── API PROXY ────────────────────────────────────────────────────────────────
+async function shopifyFetch(store, token, endpoint) {
+  const res = await fetch('/api/shopify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, endpoint })
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+async function shopifyGraphQL(store, token, query, variables = {}) {
+  const res = await fetch('/api/shopify/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, query, variables })
+  });
+  if (!res.ok) throw new Error(`GraphQL error: ${res.status}`);
+  return res.json();
+}
+
+// ─── FETCH ALL PRODUCTS (paginated) ──────────────────────────────────────────
+async function fetchAllProducts(store, token) {
+  let products = [];
+  let pageInfo = null;
+  let page = 0;
+
+  const query = `
+    query getProducts($cursor: String) {
+      products(first: 250, after: $cursor, query: "status:active") {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          title
+          handle
+          status
+          descriptionHtml
+          productType
+          vendor
+          category { name }
+          images(first: 10) { nodes { id src } }
+          options { name values }
+          variants(first: 100) {
+            nodes {
+              id
+              title
+              price
+              sku
+              selectedOptions { name value }
+            }
+          }
+          metafields(first: 10) { nodes { namespace key type } }
+        }
+      }
+    }
+  `;
+
+  do {
+    page++;
+    setProgress(Math.min(10 + page * 8, 70), `Fetching products (page ${page})...`);
+    const variables = pageInfo ? { cursor: pageInfo.endCursor } : {};
+    const data = await shopifyGraphQL(store, token, query, variables);
+    if (data.errors) throw new Error(data.errors[0].message);
+    const { nodes, pageInfo: pi } = data.data.products;
+    products = products.concat(nodes);
+    pageInfo = pi;
+  } while (pageInfo?.hasNextPage);
+
+  return products;
+}
+
+// ─── AUDIT LOGIC ─────────────────────────────────────────────────────────────
+function auditProducts(products) {
+  const results = {
+    noImage: [],
+    lowImages: [],
+    noCategory: [],
+    noDescription: [],
+    shortDescription: [],
+    ambiguousDescription: [],
+    vagueTitle: [],
+    shortTitle: [],
+    unclearOptions: [],
+    missingSkus: [],
+    zeroPrice: [],
+  };
+
+  for (const p of products) {
+    const issues = [];
+
+    // IMAGES
+    const imgCount = p.images?.nodes?.length ?? 0;
+    if (imgCount === 0) results.noImage.push({ product: p, detail: 'No images at all' });
+    else if (imgCount === 1) results.lowImages.push({ product: p, detail: '1 image only' });
+
+    // CATEGORY
+    if (!p.category?.name) results.noCategory.push({ product: p, detail: 'No Shopify category set' });
+
+    // TITLE
+    const title = p.title?.trim() ?? '';
+    if (title.length < 20) results.shortTitle.push({ product: p, detail: `Title is only ${title.length} chars` });
+    if (VAGUE_TITLE_PATTERNS.some(r => r.test(title))) results.vagueTitle.push({ product: p, detail: `Vague title: "${title}"` });
+
+    // DESCRIPTION
+    const desc = (p.descriptionHtml ?? '').replace(/<[^>]+>/g, '').trim();
+    if (!desc || desc.length === 0) {
+      results.noDescription.push({ product: p, detail: 'No description' });
+    } else if (desc.length < 100) {
+      results.shortDescription.push({ product: p, detail: `Description is only ${desc.length} chars` });
+    }
+
+    const lowerDesc = desc.toLowerCase();
+    const foundTerms = AMBIGUOUS_TERMS.filter(t => {
+      const re = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return re.test(lowerDesc);
+    });
+    if (foundTerms.length > 0) {
+      results.ambiguousDescription.push({ product: p, detail: `Contains: ${foundTerms.slice(0,4).join(', ')}` });
+    }
+
+    // OPTIONS
+    for (const opt of (p.options ?? [])) {
+      const name = opt.name?.toLowerCase() ?? '';
+      if (name === 'title' || name === 'default title') continue; // single variant placeholder
+      for (const val of (opt.values ?? [])) {
+        // Flag very short option values (likely abbreviations)
+        if (val.length <= 2 && /[A-Z]{1,2}/.test(val)) {
+          results.unclearOptions.push({ product: p, detail: `Option "${opt.name}" has short value: "${val}"` });
+          break;
+        }
+      }
+    }
+
+    // VARIANTS
+    for (const v of (p.variants?.nodes ?? [])) {
+      if (!v.sku || v.sku.trim() === '') {
+        if (!results.missingSkus.find(r => r.product.id === p.id)) {
+          results.missingSkus.push({ product: p, detail: 'One or more variants missing SKU' });
+        }
+      }
+      if (!v.price || parseFloat(v.price) === 0) {
+        if (!results.zeroPrice.find(r => r.product.id === p.id)) {
+          results.zeroPrice.push({ product: p, detail: 'One or more variants priced at £0.00' });
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+// ─── RUN FULL AUDIT ───────────────────────────────────────────────────────────
+async function runAudit(store, token) {
+  showLoading();
+  setProgress(5, 'Connecting to store...');
+
+  try {
+    // Validate connection
+    const shopData = await shopifyFetch(store, token, 'shop.json');
+    if (!shopData.shop) throw new Error('Could not connect. Check your domain and token.');
+    const shopName = shopData.shop.name;
+
+    setProgress(10, 'Fetching products...');
+    const products = await fetchAllProducts(store, token);
+
+    setProgress(80, 'Analysing data...');
+    const auditResults = auditProducts(products);
+
+    setProgress(100, 'Done');
+
+    // Store results
+    stores[store] = { token, name: shopName, products, results: auditResults };
+    activeStore = store;
+
+    setTimeout(() => {
+      renderDashboard(store);
+    }, 300);
+
+  } catch (err) {
+    hideLoading();
+    return { error: err.message };
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderDashboard(store) {
+  const { name, products, results } = stores[store];
+  const total = products.length;
+  const totalVariants = products.reduce((s, p) => s + (p.variants?.nodes?.length ?? 0), 0);
+
+  // Count unique products with any issue
+  const allIssuedIds = new Set(
+    Object.values(results).flatMap(arr => arr.map(r => r.product.id))
+  );
+  const issueCount = allIssuedIds.size;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-variants').textContent = totalVariants;
+  document.getElementById('stat-issues').textContent = issueCount;
+  document.getElementById('stat-clean').textContent = total - issueCount;
+  document.getElementById('dash-store-domain').textContent = store;
+  document.getElementById('dash-store-title').textContent = name;
+
+  const checks = [
+    { key: 'noImage', label: 'No Images', severity: 'bad' },
+    { key: 'lowImages', label: 'Only 1 Image', severity: 'warn' },
+    { key: 'noCategory', label: 'No Category', severity: 'warn' },
+    { key: 'vagueTitle', label: 'Vague Titles', severity: 'bad' },
+    { key: 'shortTitle', label: 'Short Titles', severity: 'warn' },
+    { key: 'noDescription', label: 'No Description', severity: 'bad' },
+    { key: 'shortDescription', label: 'Short Description', severity: 'warn' },
+    { key: 'ambiguousDescription', label: 'Ambiguous Language', severity: 'warn' },
+    { key: 'unclearOptions', label: 'Unclear Options', severity: 'warn' },
+    { key: 'missingSkus', label: 'Missing SKUs', severity: 'warn' },
+    { key: 'zeroPrice', label: 'Zero Price Variants', severity: 'bad' },
+  ];
+
+  const grid = document.getElementById('summary-grid');
+  grid.innerHTML = '';
+
+  for (const check of checks) {
+    const count = results[check.key]?.length ?? 0;
+    const severity = count === 0 ? 'ok' : check.severity;
+    const card = document.createElement('div');
+    card.className = `summary-card ${severity}`;
+    card.dataset.key = check.key;
+    card.innerHTML = `
+      <div class="card-label">${check.label}</div>
+      <div class="card-count">${count}</div>
+      <div class="card-of">of ${total} products</div>
+    `;
+    if (count > 0) {
+      card.onclick = () => showDrilldown(check.key, check.label, store);
+    }
+    grid.appendChild(card);
+  }
+
+  renderStoreSwitcher();
+  hideLoading();
+  document.getElementById('connect-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+  closeDrilldown();
+}
+
+// ─── SHOPIFY TAXONOMY (bundled subset — top categories with GIDs) ─────────────
+const SHOPIFY_TAXONOMY = [
+  { id: "gid://shopify/TaxonomyCategory/aa", name: "Apparel & Accessories" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1", name: "Apparel & Accessories > Clothing" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-1", name: "Apparel & Accessories > Clothing > Activewear" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-2", name: "Apparel & Accessories > Clothing > Dresses" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-3", name: "Apparel & Accessories > Clothing > Tops" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-4", name: "Apparel & Accessories > Clothing > Bottoms" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-5", name: "Apparel & Accessories > Clothing > Outerwear" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-6", name: "Apparel & Accessories > Clothing > Swimwear" },
+  { id: "gid://shopify/TaxonomyCategory/aa-1-7", name: "Apparel & Accessories > Clothing > Underwear & Socks" },
+  { id: "gid://shopify/TaxonomyCategory/aa-2", name: "Apparel & Accessories > Shoes" },
+  { id: "gid://shopify/TaxonomyCategory/aa-3", name: "Apparel & Accessories > Handbags & Wallets" },
+  { id: "gid://shopify/TaxonomyCategory/aa-4", name: "Apparel & Accessories > Jewelry" },
+  { id: "gid://shopify/TaxonomyCategory/aa-5", name: "Apparel & Accessories > Watches" },
+  { id: "gid://shopify/TaxonomyCategory/aa-6", name: "Apparel & Accessories > Sunglasses & Eyewear" },
+  { id: "gid://shopify/TaxonomyCategory/aa-7", name: "Apparel & Accessories > Hats & Caps" },
+  { id: "gid://shopify/TaxonomyCategory/hg", name: "Home & Garden" },
+  { id: "gid://shopify/TaxonomyCategory/hg-1", name: "Home & Garden > Furniture" },
+  { id: "gid://shopify/TaxonomyCategory/hg-2", name: "Home & Garden > Bedding" },
+  { id: "gid://shopify/TaxonomyCategory/hg-3", name: "Home & Garden > Bath" },
+  { id: "gid://shopify/TaxonomyCategory/hg-4", name: "Home & Garden > Kitchen & Dining" },
+  { id: "gid://shopify/TaxonomyCategory/hg-5", name: "Home & Garden > Lighting" },
+  { id: "gid://shopify/TaxonomyCategory/hg-6", name: "Home & Garden > Rugs & Carpets" },
+  { id: "gid://shopify/TaxonomyCategory/hg-7", name: "Home & Garden > Storage & Organisation" },
+  { id: "gid://shopify/TaxonomyCategory/hg-8", name: "Home & Garden > Garden & Outdoor" },
+  { id: "gid://shopify/TaxonomyCategory/hg-9", name: "Home & Garden > Home Décor" },
+  { id: "gid://shopify/TaxonomyCategory/el", name: "Electronics" },
+  { id: "gid://shopify/TaxonomyCategory/el-1", name: "Electronics > Computers & Laptops" },
+  { id: "gid://shopify/TaxonomyCategory/el-2", name: "Electronics > Mobile Phones" },
+  { id: "gid://shopify/TaxonomyCategory/el-3", name: "Electronics > Audio" },
+  { id: "gid://shopify/TaxonomyCategory/el-4", name: "Electronics > Cameras & Photography" },
+  { id: "gid://shopify/TaxonomyCategory/el-5", name: "Electronics > TV & Home Theatre" },
+  { id: "gid://shopify/TaxonomyCategory/el-6", name: "Electronics > Wearables" },
+  { id: "gid://shopify/TaxonomyCategory/el-7", name: "Electronics > Gaming" },
+  { id: "gid://shopify/TaxonomyCategory/el-8", name: "Electronics > Accessories" },
+  { id: "gid://shopify/TaxonomyCategory/hb", name: "Health & Beauty" },
+  { id: "gid://shopify/TaxonomyCategory/hb-1", name: "Health & Beauty > Skincare" },
+  { id: "gid://shopify/TaxonomyCategory/hb-2", name: "Health & Beauty > Hair Care" },
+  { id: "gid://shopify/TaxonomyCategory/hb-3", name: "Health & Beauty > Makeup & Cosmetics" },
+  { id: "gid://shopify/TaxonomyCategory/hb-4", name: "Health & Beauty > Fragrances" },
+  { id: "gid://shopify/TaxonomyCategory/hb-5", name: "Health & Beauty > Vitamins & Supplements" },
+  { id: "gid://shopify/TaxonomyCategory/hb-6", name: "Health & Beauty > Personal Care" },
+  { id: "gid://shopify/TaxonomyCategory/hb-7", name: "Health & Beauty > Medical Supplies" },
+  { id: "gid://shopify/TaxonomyCategory/sg", name: "Sporting Goods" },
+  { id: "gid://shopify/TaxonomyCategory/sg-1", name: "Sporting Goods > Exercise & Fitness" },
+  { id: "gid://shopify/TaxonomyCategory/sg-2", name: "Sporting Goods > Outdoor Recreation" },
+  { id: "gid://shopify/TaxonomyCategory/sg-3", name: "Sporting Goods > Team Sports" },
+  { id: "gid://shopify/TaxonomyCategory/sg-4", name: "Sporting Goods > Water Sports" },
+  { id: "gid://shopify/TaxonomyCategory/sg-5", name: "Sporting Goods > Winter Sports" },
+  { id: "gid://shopify/TaxonomyCategory/sg-6", name: "Sporting Goods > Cycling" },
+  { id: "gid://shopify/TaxonomyCategory/fb", name: "Food & Beverages" },
+  { id: "gid://shopify/TaxonomyCategory/fb-1", name: "Food & Beverages > Food" },
+  { id: "gid://shopify/TaxonomyCategory/fb-2", name: "Food & Beverages > Beverages" },
+  { id: "gid://shopify/TaxonomyCategory/fb-3", name: "Food & Beverages > Alcohol" },
+  { id: "gid://shopify/TaxonomyCategory/to", name: "Toys & Games" },
+  { id: "gid://shopify/TaxonomyCategory/to-1", name: "Toys & Games > Toys" },
+  { id: "gid://shopify/TaxonomyCategory/to-2", name: "Toys & Games > Games & Puzzles" },
+  { id: "gid://shopify/TaxonomyCategory/to-3", name: "Toys & Games > Outdoor Play" },
+  { id: "gid://shopify/TaxonomyCategory/pe", name: "Pet Supplies" },
+  { id: "gid://shopify/TaxonomyCategory/pe-1", name: "Pet Supplies > Dog" },
+  { id: "gid://shopify/TaxonomyCategory/pe-2", name: "Pet Supplies > Cat" },
+  { id: "gid://shopify/TaxonomyCategory/pe-3", name: "Pet Supplies > Fish & Aquatic" },
+  { id: "gid://shopify/TaxonomyCategory/pe-4", name: "Pet Supplies > Bird" },
+  { id: "gid://shopify/TaxonomyCategory/ar", name: "Arts & Entertainment" },
+  { id: "gid://shopify/TaxonomyCategory/ar-1", name: "Arts & Entertainment > Art Supplies" },
+  { id: "gid://shopify/TaxonomyCategory/ar-2", name: "Arts & Entertainment > Musical Instruments" },
+  { id: "gid://shopify/TaxonomyCategory/ar-3", name: "Arts & Entertainment > Books & Magazines" },
+  { id: "gid://shopify/TaxonomyCategory/of", name: "Office Supplies" },
+  { id: "gid://shopify/TaxonomyCategory/of-1", name: "Office Supplies > Stationery" },
+  { id: "gid://shopify/TaxonomyCategory/of-2", name: "Office Supplies > Furniture" },
+  { id: "gid://shopify/TaxonomyCategory/of-3", name: "Office Supplies > Technology" },
+  { id: "gid://shopify/TaxonomyCategory/hw", name: "Hardware" },
+  { id: "gid://shopify/TaxonomyCategory/hw-1", name: "Hardware > Tools" },
+  { id: "gid://shopify/TaxonomyCategory/hw-2", name: "Hardware > Building Materials" },
+  { id: "gid://shopify/TaxonomyCategory/hw-3", name: "Hardware > Electrical" },
+  { id: "gid://shopify/TaxonomyCategory/au", name: "Automotive" },
+  { id: "gid://shopify/TaxonomyCategory/au-1", name: "Automotive > Car Parts" },
+  { id: "gid://shopify/TaxonomyCategory/au-2", name: "Automotive > Car Accessories" },
+  { id: "gid://shopify/TaxonomyCategory/au-3", name: "Automotive > Tools & Equipment" },
+  { id: "gid://shopify/TaxonomyCategory/ba", name: "Baby & Toddler" },
+  { id: "gid://shopify/TaxonomyCategory/ba-1", name: "Baby & Toddler > Clothing" },
+  { id: "gid://shopify/TaxonomyCategory/ba-2", name: "Baby & Toddler > Feeding" },
+  { id: "gid://shopify/TaxonomyCategory/ba-3", name: "Baby & Toddler > Nursery" },
+  { id: "gid://shopify/TaxonomyCategory/ba-4", name: "Baby & Toddler > Toys" },
+];
+
+// ─── CATEGORY STATE ───────────────────────────────────────────────────────────
+// { [productId]: { suggestions: [{id, name, confidence}], selected: id|null, applied: bool } }
+const categoryState = {};
+
+// ─── AI CATEGORY SUGGESTION ───────────────────────────────────────────────────
+async function getSuggestions(product) {
+  const desc = (product.descriptionHtml || '').replace(/<[^>]+>/g, '').slice(0, 400);
+  const taxonomyList = SHOPIFY_TAXONOMY.map(c => `${c.id} | ${c.name}`).join('\n');
+
+  const prompt = `You are a Shopify product categorisation expert. Given a product, return the 3 best matching Shopify taxonomy categories from the list below.
+
+Product title: ${product.title}
+Product type: ${product.productType || 'not set'}
+Vendor: ${product.vendor || 'not set'}
+Description: ${desc || 'none'}
+
+Taxonomy options:
+${taxonomyList}
+
+Respond ONLY with valid JSON in this exact format, no preamble, no markdown:
+{"suggestions":[{"id":"gid://shopify/TaxonomyCategory/xx","name":"Full Category Name","confidence":"High"},{"id":"gid://shopify/TaxonomyCategory/xx","name":"Full Category Name","confidence":"Medium"},{"id":"gid://shopify/TaxonomyCategory/xx","name":"Full Category Name","confidence":"Low"}]}`;
+
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  const parsed = JSON.parse(clean);
+  return parsed.suggestions;
+}
+
+// ─── APPLY CATEGORY ───────────────────────────────────────────────────────────
+async function applyCategory(store, token, productId, categoryId) {
+  const res = await fetch('/api/shopify/set-category', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, productId, categoryId })
+  });
+  const data = await res.json();
+  if (data.data?.productUpdate?.userErrors?.length > 0) {
+    throw new Error(data.data.productUpdate.userErrors[0].message);
+  }
+  return data;
+}
+
+// ─── RENDER CATEGORY DRILLDOWN ────────────────────────────────────────────────
+function renderCategoryDrilldown(items, store) {
+  const { token } = stores[store];
+  const pendingCount = () => Object.values(categoryState).filter(s => s.selected && !s.applied).length;
+
+  const container = document.getElementById('drilldown-content');
+
+  function renderAll() {
+    const bulkBar = `
+      <div class="bulk-bar" id="bulk-bar">
+        <div class="bulk-bar-label"><strong>${items.length}</strong> products without a category</div>
+        <div class="bulk-bar-actions">
+          <button class="btn-suggest-all" id="btn-suggest-all" onclick="suggestAll()">✦ Suggest All</button>
+          <button class="btn-accept-all" id="btn-accept-all" onclick="acceptAll()" ${pendingCount() === 0 ? 'disabled' : ''}>
+            Apply All Selections ${pendingCount() > 0 ? `(${pendingCount()})` : ''}
+          </button>
+        </div>
+      </div>
+    `;
+
+    const rows = items.map(({ product }) => {
+      const pid = product.id;
+      const state = categoryState[pid];
+
+      let actionsHtml = '';
+      if (!state) {
+        actionsHtml = `<button class="btn-suggest" onclick="suggestOne('${pid}')">✦ Suggest</button>`;
+      } else if (state.thinking) {
+        actionsHtml = `<div class="thinking-indicator"><div class="thinking-dot"></div> Thinking...</div>`;
+      } else if (state.applied) {
+        const cat = SHOPIFY_TAXONOMY.find(c => c.id === state.selected);
+        actionsHtml = `<span class="applied-badge">✓ ${cat?.name || 'Applied'}</span>`;
+      } else if (state.suggestions) {
+        const hasSelected = !!state.selected;
+        actionsHtml = hasSelected
+          ? `<button class="btn-apply" onclick="applySingle('${pid}')">Apply Selected →</button>`
+          : '';
+      }
+
+      const suggestionsHtml = state?.suggestions && !state.applied ? `
+        <div class="suggestions-panel">
+          <div class="suggestions-label">Suggested categories — pick one:</div>
+          <div class="suggestion-options">
+            ${state.suggestions.map(s => `
+              <button class="suggestion-btn ${state.selected === s.id ? 'selected' : ''}"
+                onclick="selectSuggestion('${pid}', '${s.id}')">
+                <span class="suggestion-name">${s.name}</span>
+                <span class="suggestion-confidence">${s.confidence} confidence</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      return `
+        <div class="category-row" id="cat-row-${pid.replace(/\//g, '-')}">
+          <div class="category-row-main">
+            <div>
+              <div class="cat-product-name">${product.title}</div>
+              <div class="cat-product-meta">${product.vendor || ''} ${product.productType ? '· ' + product.productType : ''}</div>
+            </div>
+            <div class="cat-actions">${actionsHtml}</div>
+          </div>
+          ${suggestionsHtml}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      ${bulkBar}
+      <div class="product-table" style="margin-top: 0">${rows}</div>
+    `;
+  }
+
+  // Expose functions to window scope for onclick handlers
+  window.suggestOne = async (pid) => {
+    const product = items.find(i => i.product.id === pid)?.product;
+    if (!product) return;
+    categoryState[pid] = { thinking: true };
+    renderAll();
+    try {
+      const suggestions = await getSuggestions(product);
+      categoryState[pid] = { suggestions, selected: suggestions[0]?.id || null };
+    } catch(e) {
+      categoryState[pid] = { error: e.message };
+    }
+    renderAll();
+  };
+
+  window.selectSuggestion = (pid, categoryId) => {
+    if (categoryState[pid]) {
+      categoryState[pid].selected = categoryId;
+      renderAll();
+    }
+  };
+
+  window.applySingle = async (pid) => {
+    const state = categoryState[pid];
+    if (!state?.selected) return;
+    try {
+      await applyCategory(store, token, pid, state.selected);
+      state.applied = true;
+      // Remove from noCategory results
+      stores[store].results.noCategory = stores[store].results.noCategory.filter(i => i.product.id !== pid);
+      renderAll();
+      // Update summary card count
+      renderDashboard(store);
+      // Re-open drilldown on category
+      showDrilldown('noCategory', 'No Category', store);
+    } catch(e) {
+      alert(`Failed to apply: ${e.message}`);
+    }
+  };
+
+  window.suggestAll = async () => {
+    const unsuggestedItems = items.filter(({ product }) => !categoryState[product.id]);
+    document.getElementById('btn-suggest-all').disabled = true;
+    document.getElementById('btn-suggest-all').textContent = `Thinking... (0/${unsuggestedItems.length})`;
+
+    for (let i = 0; i < unsuggestedItems.length; i++) {
+      const { product } = unsuggestedItems[i];
+      categoryState[product.id] = { thinking: true };
+      try {
+        const suggestions = await getSuggestions(product);
+        categoryState[product.id] = { suggestions, selected: suggestions[0]?.id || null };
+      } catch(e) {
+        categoryState[product.id] = { suggestions: [], selected: null };
+      }
+      document.getElementById('btn-suggest-all') && (document.getElementById('btn-suggest-all').textContent = `Thinking... (${i+1}/${unsuggestedItems.length})`);
+      renderAll();
+    }
+    renderAll();
+  };
+
+  window.acceptAll = async () => {
+    const toApply = items.filter(({ product }) => {
+      const s = categoryState[product.id];
+      return s?.selected && !s?.applied;
+    });
+
+    const btn = document.getElementById('btn-accept-all');
+    if (btn) { btn.disabled = true; btn.textContent = `Applying...`; }
+
+    let applied = 0;
+    for (const { product } of toApply) {
+      const state = categoryState[product.id];
+      try {
+        await applyCategory(store, token, product.id, state.selected);
+        state.applied = true;
+        stores[store].results.noCategory = stores[store].results.noCategory.filter(i => i.product.id !== product.id);
+        applied++;
+        renderAll();
+      } catch(e) {
+        console.error(`Failed for ${product.title}:`, e.message);
+      }
+    }
+
+    renderDashboard(store);
+    showDrilldown('noCategory', 'No Category', store);
+  };
+
+  renderAll();
+}
+
+// ─── SHOW DRILLDOWN ───────────────────────────────────────────────────────────
+function showDrilldown(key, label, store) {
+  if (activeDrilldown === key) { closeDrilldown(); return; }
+  activeDrilldown = key;
+
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.summary-card[data-key="${key}"]`)?.classList.add('active');
+
+  const items = stores[store].results[key] ?? [];
+  const drilldown = document.getElementById('drilldown');
+  document.getElementById('drilldown-title').textContent = `${label} — ${items.length} product${items.length !== 1 ? 's' : ''}`;
+
+  if (items.length === 0) {
+    document.getElementById('drilldown-content').innerHTML = '<div class="empty-state">No issues found ✓</div>';
+  } else if (key === 'noCategory') {
+    renderCategoryDrilldown(items, store);
+  } else {
+    const rows = items.map(({ product, detail }) => `
+      <tr>
+        <td class="product-title-cell">
+          <a href="https://${store}/admin/products/${product.id.split('/').pop()}" target="_blank">
+            ${product.title}
+          </a>
+        </td>
+        <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:12px">${product.vendor || '—'}</td>
+        <td><span class="issue-tag amber">${detail}</span></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('drilldown-content').innerHTML = `
+      <div class="product-table">
+        <table>
+          <thead><tr><th>Product</th><th>Vendor</th><th>Issue</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  drilldown.style.display = 'flex';
+  drilldown.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeDrilldown() {
+  activeDrilldown = null;
+  document.getElementById('drilldown').style.display = 'none';
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+}
+
+// ─── STORE SWITCHER ───────────────────────────────────────────────────────────
+function renderStoreSwitcher() {
+  const sw = document.getElementById('store-switcher');
+  sw.innerHTML = '';
+  for (const domain of Object.keys(stores)) {
+    const pill = document.createElement('button');
+    pill.className = `store-pill${domain === activeStore ? ' active' : ''}`;
+    pill.textContent = domain.replace('.myshopify.com', '');
+    pill.onclick = () => switchStore(domain);
+    sw.appendChild(pill);
+  }
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn-add-store';
+  addBtn.textContent = '+ Add Store';
+  addBtn.onclick = () => openModal();
+  sw.appendChild(addBtn);
+}
+
+function switchStore(domain) {
+  activeStore = domain;
+  renderDashboard(domain);
+}
+
+// ─── CONNECT FLOWS ────────────────────────────────────────────────────────────
+async function connectFirstStore() {
+  const store = document.getElementById('first-store').value.trim();
+  const token = document.getElementById('first-token').value.trim();
+  const errEl = document.getElementById('connect-error');
+  errEl.style.display = 'none';
+
+  if (!store || !token) { showError(errEl, 'Please enter both store domain and token.'); return; }
+
+  document.querySelector('#connect-screen .btn-primary').disabled = true;
+  const result = await runAudit(store, token);
+  document.querySelector('#connect-screen .btn-primary').disabled = false;
+
+  if (result?.error) showError(errEl, result.error);
+}
+
+async function addStore() {
+  const store = document.getElementById('modal-store').value.trim();
+  const token = document.getElementById('modal-token').value.trim();
+  const errEl = document.getElementById('modal-error');
+  errEl.style.display = 'none';
+
+  if (!store || !token) { showError(errEl, 'Please enter both fields.'); return; }
+
+  closeModal();
+  const result = await runAudit(store, token);
+  if (result?.error) alert(`Error: ${result.error}`);
+}
+
+async function rerunAudit() {
+  if (!activeStore) return;
+  const { token } = stores[activeStore];
+  await runAudit(activeStore, token);
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('add-store-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('add-store-modal').classList.remove('open');
+  document.getElementById('modal-store').value = '';
+  document.getElementById('modal-token').value = '';
+  document.getElementById('modal-error').style.display = 'none';
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function showLoading() {
+  document.getElementById('connect-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loading-screen').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading-screen').style.display = 'none';
+}
+function setProgress(pct, label) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('loading-label').textContent = label;
+}
+function showError(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>

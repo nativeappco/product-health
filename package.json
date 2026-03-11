@@ -1,0 +1,15 @@
+{
+  "name": "shopify-data-health",
+  "version": "1.0.0",
+  "description": "Shopify product data health dashboard",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0",
+    "cors": "^2.8.5"
+  }
+}
