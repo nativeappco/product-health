@@ -80,27 +80,33 @@ app.post('/api/claude', async (req, res) => {
 
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set on server' });
 
-  // Combine all message content into a single prompt
   const prompt = messages.map(m => m.content).join('\n');
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2 }
-        }),
-      }
-    );
-    const data = await response.json();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    console.log('Calling Gemini API...');
 
-    // Normalise response to match the shape the frontend expects
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2 }
+      }),
+    });
+
+    const data = await response.json();
+    console.log('Gemini status:', response.status);
+    console.log('Gemini response:', JSON.stringify(data).slice(0, 500));
+
+    if (!response.ok) {
+      return res.status(500).json({ error: data.error?.message || 'Gemini API error', details: data });
+    }
+
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     res.json({ content: [{ type: 'text', text }] });
   } catch (err) {
+    console.error('Gemini fetch error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
