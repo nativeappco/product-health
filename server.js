@@ -73,30 +73,33 @@ app.post('/api/shopify/graphql', async (req, res) => {
   }
 });
 
-// Anthropic API proxy (keeps API key server-side)
+// Gemini API proxy (keeps API key server-side)
 app.post('/api/claude', async (req, res) => {
-  const { messages, system } = req.body;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const { messages } = req.body;
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set on server' });
+  if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set on server' });
+
+  // Combine all message content into a single prompt
+  const prompt = messages.map(m => m.content).join('\n');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        system,
-        messages,
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2 }
+        }),
+      }
+    );
     const data = await response.json();
-    res.json(data);
+
+    // Normalise response to match the shape the frontend expects
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    res.json({ content: [{ type: 'text', text }] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
