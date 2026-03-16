@@ -1,0 +1,3041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product Data Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=VT323&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Surfaces */
+      --bg: #09090f;
+      --surface: #111118;
+      --surface2: #1a1a26;
+      --border: #383858;
+
+      /* Text — all pass WCAG AA (4.5:1) on their respective surfaces */
+      --text: #f2f2ff;          /* ~19:1 on bg */
+      --muted: #a8a8cc;         /* ~7.5:1 on bg — was #6060a0 which was only ~3:1 */
+
+      /* Accent colours — all pass 4.5:1 on dark surfaces */
+      --accent: #ff6a00;        /* neon orange — 6.4:1 on bg */
+      --accent-dim: #ff6a0020;
+      --cyan: #00ddff;          /* electric cyan — 11:1 on bg */
+      --cyan-dim: #00ddff18;
+      --red: #ff4466;           /* coral red — 5.4:1 on bg */
+      --red-dim: #ff446620;
+      --amber: #ffd000;         /* electric yellow — 13:1 on bg */
+      --amber-dim: #ffd00020;
+      --green: #00ffaa;         /* neon seafoam — 14:1 on bg */
+      --green-dim: #00ffaa18;
+      --blue: #66aaff;          /* sky blue — 6:1 on bg */
+      --blue-dim: #66aaff20;
+      --pink: #ff55dd;          /* hot pink — 5.2:1 on bg */
+      --pixel-font: 'VT323', monospace;
+    }
+
+    /* ── RETRO ANIMATIONS ── */
+    @keyframes pixel-press {
+      0%   { filter: none; transform: scale(1); }
+      12%  { filter: saturate(8) brightness(2.5) contrast(200%); transform: scale(0.93) rotate(-1deg); image-rendering: pixelated; }
+      28%  { filter: saturate(4) brightness(1.8) hue-rotate(30deg); transform: scale(1.04) rotate(0.5deg); }
+      55%  { filter: brightness(1.2); transform: scale(0.98); }
+      100% { filter: none; transform: scale(1); }
+    }
+    @keyframes glitch {
+      0%,100% { text-shadow: none; transform: none; }
+      8%  { text-shadow: 3px 0 var(--cyan), -3px 0 var(--pink); transform: skewX(-2deg); }
+      12% { text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan); transform: skewX(1deg); }
+      16% { text-shadow: none; transform: none; }
+    }
+    @keyframes wave-in {
+      from { opacity: 0; transform: translateY(18px) rotate(-1deg); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes surf-bob {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-5px); }
+    }
+    @keyframes scanlines {
+      0%   { background-position: 0 0; }
+      100% { background-position: 0 4px; }
+    }
+    @keyframes neon-pulse {
+      0%,100% { box-shadow: 0 0 6px var(--accent), 0 0 12px var(--accent)66; }
+      50%      { box-shadow: 0 0 14px var(--accent), 0 0 28px var(--accent)44; }
+    }
+    @keyframes toast-pop {
+      0%   { opacity: 0; transform: translateY(30px) scale(0.8) rotate(-3deg); }
+      20%  { opacity: 1; transform: translateY(0) scale(1.08) rotate(1deg); }
+      80%  { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    }
+    @keyframes stripe-scroll {
+      from { background-position: 0 0; }
+      to   { background-position: 40px 0; }
+    }
+    @keyframes card-wobble {
+      0%,100% { transform: translateY(-2px) rotate(0deg); }
+      33%      { transform: translateY(-4px) rotate(0.4deg); }
+      66%      { transform: translateY(-3px) rotate(-0.3deg); }
+    }
+
+    /* ── PIXEL PRESS on all clickable buttons ── */
+    button:not(:disabled).pixel-press,
+    .btn-primary:active, .btn-suggest:active, .btn-apply:active,
+    .btn-accept-all:active, .btn-suggest-all:active,
+    .btn-rerun:active, .btn-close-drill:active,
+    .store-pill:active, .btn-add-store:active,
+    .btn-ai-title:active, .btn-ai-desc:active,
+    .btn-alt-gen:active {
+      animation: pixel-press 0.45s ease forwards;
+    }
+
+    /* ── SURF TOAST ── */
+    #surf-toast {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--pixel-font);
+      font-size: 26px;
+      padding: 12px 24px;
+      border-radius: 4px;
+      z-index: 999;
+      pointer-events: none;
+      display: none;
+      box-shadow: 4px 4px 0 #000;
+    }
+    #surf-toast.show { display: block; animation: toast-pop 2s ease forwards; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(255,255,255,0.012) 3px,
+          rgba(255,255,255,0.012) 4px
+        );
+    }
+
+    /* HEADER */
+    header {
+      border-bottom: 2px solid var(--accent);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+      box-shadow: 0 2px 30px var(--accent)22;
+    }
+
+    .logo {
+      font-family: var(--pixel-font);
+      font-size: 26px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      animation: glitch 6s infinite;
+      cursor: default;
+    }
+
+    .logo span { color: var(--muted); }
+
+    /* STORE SWITCHER */
+    #store-switcher {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .store-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      padding: 4px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.05em;
+    }
+
+    .store-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .store-pill.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 8px var(--accent)44; }
+
+    .btn-add-store {
+      background: var(--accent);
+      color: #000;
+      border: 2px solid #000;
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      padding: 4px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-add-store:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+
+    /* MAIN */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    /* CONNECT SCREEN */
+    #connect-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      gap: 32px;
+    }
+
+    .connect-title {
+      font-family: var(--pixel-font);
+      font-size: 64px;
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: 0.04em;
+      text-shadow: 4px 4px 0 #000;
+    }
+
+    .connect-title em {
+      font-style: normal;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent)66, 4px 4px 0 #000;
+    }
+
+    .connect-sub {
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 20px;
+      max-width: 440px;
+      line-height: 1.5;
+    }
+
+    .connect-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .connect-form input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .connect-form input:focus { border-color: var(--accent); }
+    .connect-form input::placeholder { color: var(--muted); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border: 2px solid #000;
+      font-family: var(--pixel-font);
+      font-size: 20px;
+      font-weight: 400;
+      padding: 12px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      transition: all 0.12s;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .btn-primary:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #000; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* LOADING */
+    #loading-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 20px;
+    }
+
+    .loading-label {
+      font-family: var(--pixel-font);
+      font-size: 22px;
+      color: var(--accent);
+      text-shadow: 0 0 10px var(--accent)55;
+      animation: surf-bob 1.5s ease-in-out infinite;
+    }
+
+    .progress-bar-wrap {
+      width: 320px;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--accent) 0px,
+        var(--accent) 12px,
+        var(--cyan) 12px,
+        var(--cyan) 20px
+      );
+      background-size: 40px 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.4s ease;
+      animation: stripe-scroll 0.6s linear infinite;
+    }
+
+    /* DASHBOARD */
+    #dashboard {
+      display: none;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .dash-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .store-name {
+      font-family: var(--pixel-font);
+      font-size: 36px;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    .store-name span {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .btn-rerun {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      padding: 6px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-rerun:hover { border-color: var(--cyan); color: var(--cyan); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+
+    /* SUMMARY GRID */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+
+    .summary-card.ok::before { background: var(--green); }
+    .summary-card.warn::before { background: var(--amber); }
+    .summary-card.bad::before { background: var(--red); }
+
+    .summary-card:hover {
+      border-color: var(--accent);
+      transform: translate(-2px,-2px);
+      box-shadow: 5px 5px 0 #000;
+      animation: card-wobble 0.6s ease infinite;
+    }
+
+    .summary-card.active {
+      border-color: var(--accent);
+      background: var(--surface2);
+      box-shadow: 0 0 0 2px var(--accent), 3px 3px 0 #000;
+    }
+
+    .card-label {
+      font-family: var(--pixel-font);
+      font-size: 15px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .card-count {
+      font-family: var(--pixel-font);
+      font-size: 52px;
+      font-weight: 400;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .summary-card.ok .card-count { color: var(--green); text-shadow: 0 0 12px var(--green)66; }
+    .summary-card.warn .card-count { color: var(--amber); text-shadow: 0 0 12px var(--amber)66; }
+    .summary-card.bad .card-count { color: var(--red); text-shadow: 0 0 12px var(--red)66; }
+
+    .card-of {
+      font-family: var(--pixel-font);
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    /* STAT STRIP */
+    .stat-strip {
+      display: flex;
+      gap: 24px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      padding: 20px 28px;
+      box-shadow: 4px 4px 0 #000;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-item + .stat-item {
+      padding-left: 24px;
+      border-left: 1px solid var(--border);
+    }
+
+    .stat-val {
+      font-family: var(--pixel-font);
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--cyan);
+      text-shadow: 0 0 10px var(--cyan)55;
+    }
+
+    .stat-label {
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* DRILLDOWN */
+    #drilldown {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drilldown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drilldown-title {
+      font-family: var(--pixel-font);
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--cyan);
+      text-shadow: 0 0 10px var(--cyan)44;
+    }
+
+    .btn-close-drill {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      padding: 4px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-close-drill:hover { border-color: var(--red); color: var(--red); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+
+    .product-table {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .product-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .product-table th {
+      background: var(--surface2);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .product-table td {
+      padding: 14px 20px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .product-table tr:last-child td { border-bottom: none; }
+
+    .product-table tr:hover td { background: var(--surface2); }
+
+    .product-title-cell {
+      font-weight: 600;
+      max-width: 260px;
+    }
+
+    .product-title-cell a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .product-title-cell a:hover { color: var(--accent); }
+
+    .issue-tag {
+      display: inline-block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 2px 2px 2px 0;
+    }
+
+    .issue-tag.red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red)44; }
+    .issue-tag.amber { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber)44; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000000aa;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 6px 6px 0 #000;
+    }
+
+    .modal h3 { font-family: var(--pixel-font); font-size: 26px; font-weight: 400; color: var(--cyan); }
+    .modal p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    .modal input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal input::placeholder { color: var(--muted); }
+
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .btn-cancel {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      padding: 8px 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+
+    /* ERROR */
+    .error-msg {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--red);
+      padding: 10px 14px;
+      background: var(--red-dim);
+      border: 1px solid var(--red)33;
+      border-radius: 6px;
+    }
+
+    /* EMPTY */
+    .empty-state {
+      padding: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* LOGIC EDITOR */
+    #logic-editor {
+      border-top: 2px solid var(--border);
+      margin-top: 12px;
+    }
+    .logic-editor-toggle {
+      width: 100%; display: flex; align-items: center; gap: 16px;
+      background: none; border: none; cursor: pointer;
+      padding: 18px 4px; text-align: left;
+      color: var(--muted); transition: color 0.15s;
+    }
+    .logic-editor-toggle:hover { color: var(--text); }
+    .logic-editor-toggle > span:first-child {
+      font-family: var(--pixel-font); font-size: 18px; color: var(--cyan);
+    }
+    .logic-editor-sub {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); flex: 1;
+    }
+    #logic-editor-chevron {
+      font-family: var(--pixel-font); font-size: 16px; color: var(--muted);
+      transition: transform 0.2s;
+    }
+    #logic-editor-chevron.open { transform: rotate(180deg); }
+    #logic-editor-body {
+      display: none;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    #logic-editor-body.open { display: flex; }
+    .logic-block {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .logic-block-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .logic-block-label {
+      font-family: var(--pixel-font); font-size: 16px; color: var(--cyan); margin-bottom: 3px;
+    }
+    .logic-block-desc {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.5;
+    }
+    .logic-textarea {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.6;
+      padding: 12px 14px; border-radius: 3px; resize: vertical; min-height: 140px;
+      transition: border-color 0.15s;
+    }
+    .logic-textarea:focus { outline: none; border-color: var(--cyan); }
+    .logic-reset-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      font-family: var(--pixel-font); font-size: 13px; padding: 4px 12px;
+      border-radius: 3px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .logic-reset-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* ALT TEXT MODULE */
+    .alt-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .alt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .alt-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.15s;
+      animation: wave-in 0.35s ease both;
+    }
+    .alt-card:hover { border-color: var(--cyan)66; }
+    .alt-thumb-wrap {
+      position: relative;
+      width: 100%;
+      padding-top: 75%;
+      background: var(--surface2);
+      overflow: hidden;
+      cursor: zoom-in;
+    }
+    .alt-thumb-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.2s;
+    }
+    .alt-thumb-wrap:hover img { transform: scale(1.04); }
+    .alt-thumb-overlay {
+      position: absolute;
+      inset: 0;
+      background: #0006;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+      font-size: 28px;
+    }
+    .alt-thumb-wrap:hover .alt-thumb-overlay { opacity: 1; }
+    .alt-card-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .alt-card-product { font-weight: 600; font-size: 13px; color: var(--text); line-height: 1.3; }
+    .alt-card-product a { color: inherit; text-decoration: none; }
+    .alt-card-product a:hover { color: var(--cyan); }
+    .alt-card-filename { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); word-break: break-all; }
+    .alt-filename-clues { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .alt-clue-tag {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 2px; padding: 2px 6px;
+      font-family: 'DM Mono', monospace; font-size: 10px; color: var(--cyan);
+    }
+    .alt-current {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); font-style: italic;
+      border-left: 2px solid var(--border); padding-left: 8px;
+    }
+    .alt-status-missing { color: var(--red); font-family: var(--pixel-font); font-size: 13px; }
+    .alt-status-poor    { color: var(--amber); font-family: var(--pixel-font); font-size: 13px; }
+    .alt-status-ok      { color: var(--green); font-family: var(--pixel-font); font-size: 13px; }
+    .alt-card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn-alt-gen {
+      background: #00ddff18; border: 2px solid var(--cyan)66; color: var(--cyan);
+      font-family: var(--pixel-font); font-size: 14px;
+      padding: 5px 12px; border-radius: 3px; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap; box-shadow: 2px 2px 0 #000;
+    }
+    .btn-alt-gen:hover { background: var(--cyan); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-alt-gen:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .alt-suggestion-panel {
+      background: var(--surface2); border-top: 1px solid var(--border);
+      padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .alt-suggestion-label { font-family: var(--pixel-font); font-size: 13px; color: var(--cyan); }
+    .alt-suggestion-input {
+      width: 100%; box-sizing: border-box;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      padding: 8px 10px; border-radius: 3px; resize: vertical; min-height: 52px;
+    }
+    .alt-suggestion-input:focus { outline: none; border-color: var(--cyan); }
+    .alt-char-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; }
+    .alt-char-count.warn { color: var(--amber); }
+    .alt-char-count.ok   { color: var(--green); }
+    .alt-applied-badge { color: var(--green); font-family: var(--pixel-font); font-size: 13px; }
+
+    /* CATEGORY FEATURE */
+    .category-row { border-bottom: 1px solid var(--border); }
+    .category-row:last-child { border-bottom: none; }
+    .category-row-main {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+    }
+    .category-row-main:hover { background: var(--surface2); }
+    .cat-product-name { font-weight: 600; font-size: 14px; }
+    .cat-product-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .cat-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .btn-suggest {
+      background: var(--accent-dim); border: 2px solid var(--accent)66; color: var(--accent);
+      font-family: var(--pixel-font); font-size: 15px;
+      padding: 5px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-suggest:hover { background: var(--accent); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-suggest:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-apply {
+      background: var(--green-dim); border: 2px solid var(--green)66; color: var(--green);
+      font-family: var(--pixel-font); font-size: 15px;
+      padding: 5px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-apply:hover { background: var(--green); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-apply:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    /* AI title/desc buttons */
+    .btn-ai-title {
+      background: var(--cyan-dim); border: 2px solid var(--cyan)66; color: var(--cyan);
+      font-family: var(--pixel-font); font-size: 15px;
+      padding: 5px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-ai-title:hover { background: var(--cyan); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-ai-title:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ai-desc {
+      background: #ff00cc18; border: 2px solid var(--pink)66; color: var(--pink);
+      font-family: var(--pixel-font); font-size: 15px;
+      padding: 5px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-ai-desc:hover { background: var(--pink); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-ai-desc:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-copy-text {
+      background: var(--surface2); border: 2px solid var(--border); color: var(--muted);
+      font-family: var(--pixel-font); font-size: 14px;
+      padding: 4px 12px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-copy-text:hover { border-color: var(--cyan); color: var(--cyan); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-apply-text {
+      background: var(--green-dim); border: 2px solid var(--green)66; color: var(--green);
+      font-family: var(--pixel-font); font-size: 14px;
+      padding: 4px 12px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-apply-text:hover { background: var(--green); color: #000; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .applied-badge {
+      font-family: var(--pixel-font); font-size: 15px; color: var(--green);
+      background: var(--green-dim); border: 2px solid var(--green)44; padding: 4px 10px; border-radius: 3px;
+      text-shadow: 0 0 8px var(--green)66;
+    }
+    .cat-error {
+      font-family: var(--pixel-font); font-size: 14px; color: var(--red);
+      margin-right: 10px;
+    }
+    .suggestions-panel { padding: 0 20px 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+    .suggestions-label { font-family: var(--pixel-font); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .suggestion-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .suggestion-btn {
+      background: var(--surface2); border: 2px solid var(--border); color: var(--text);
+      font-family: var(--pixel-font); font-size: 14px; padding: 6px 14px; border-radius: 3px;
+      cursor: pointer; transition: all 0.15s; text-align: left; display: flex; flex-direction: column; gap: 2px;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .suggestion-btn:hover { border-color: var(--accent); color: var(--accent); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .suggestion-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); box-shadow: 0 0 8px var(--accent)44, 2px 2px 0 #000; }
+    .suggestion-name { font-weight: 500; }
+    .suggestion-confidence { font-size: 12px; color: var(--muted); }
+    .suggestion-btn.selected .suggestion-confidence { color: var(--accent); opacity: 0.7; }
+    /* AI suggestion text panels */
+    .ai-text-panel { padding: 0 20px 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .ai-text-result {
+      background: var(--surface2); border: 2px solid var(--border); border-radius: 3px;
+      padding: 14px 16px; font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7;
+      color: var(--text); white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+    }
+    .ai-title-result {
+      background: var(--surface2); border: 2px solid var(--cyan)44; border-radius: 3px;
+      padding: 10px 16px; font-family: var(--pixel-font); font-size: 20px;
+      color: var(--cyan); text-shadow: 0 0 8px var(--cyan)44;
+    }
+    input.ai-title-input {
+      display: block; width: 100%;
+      background: var(--surface2); border: 2px solid var(--cyan)44; border-radius: 3px;
+      padding: 10px 16px; font-family: var(--pixel-font); font-size: 20px;
+      color: var(--cyan); text-shadow: 0 0 8px var(--cyan)44;
+      outline: none; box-shadow: none;
+    }
+    input.ai-title-input:focus { border-color: var(--cyan); }
+    .ai-text-actions { display: flex; gap: 8px; align-items: center; }
+    .bulk-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 2px solid var(--border); border-radius: 3px; padding: 14px 20px;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .bulk-bar-label { font-family: var(--pixel-font); font-size: 16px; color: var(--muted); }
+    .bulk-bar-label strong { color: var(--text); }
+    .bulk-bar-actions { display: flex; gap: 8px; }
+    .btn-accept-all {
+      background: var(--accent); color: #000; border: 2px solid #000;
+      font-family: var(--pixel-font); font-size: 16px;
+      padding: 8px 20px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .btn-accept-all:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #000; }
+    .btn-accept-all:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-suggest-all {
+      background: transparent; border: 2px solid var(--accent)66; color: var(--accent);
+      font-family: var(--pixel-font); font-size: 16px;
+      padding: 8px 20px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .btn-suggest-all:hover { background: var(--accent-dim); transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #000; }
+    .btn-suggest-all:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .thinking-indicator { font-family: var(--pixel-font); font-size: 16px; color: var(--muted); padding: 8px 0; display: flex; align-items: center; gap: 8px; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .thinking-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 0.8s infinite; }
+
+    /* ── TAB NAV ── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 2px solid transparent;
+      border-bottom: none;
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 18px;
+      padding: 8px 22px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      bottom: -2px;
+      border-radius: 3px 3px 0 0;
+      letter-spacing: 0.04em;
+    }
+    .tab-btn:hover { color: var(--text); border-color: var(--border); }
+    .tab-btn.active {
+      color: var(--cyan);
+      border-color: var(--border);
+      border-bottom-color: var(--surface); /* hides bottom border, makes it flush */
+      background: var(--surface);
+      text-shadow: 0 0 10px var(--cyan)44;
+    }
+
+    /* ── GEO TOOLBAR ── */
+    .geo-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 4px 0 2px;
+    }
+    .geo-filter-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .geo-filter-label {
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      color: var(--muted);
+    }
+    .geo-filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .geo-pill {
+      font-family: var(--pixel-font);
+      font-size: 15px;
+      padding: 4px 14px;
+      border-radius: 3px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.12s;
+      background: var(--surface2);
+      color: var(--muted);
+      box-shadow: 2px 2px 0 #000;
+    }
+    .geo-pill:hover, .geo-pill.active { color: var(--text); border-color: var(--border); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .geo-pill.poor.active   { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
+    .geo-pill.needs-work.active { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+    .geo-pill.solid.active  { border-color: var(--cyan);  color: var(--cyan);  background: var(--cyan-dim); }
+    .geo-pill.ai-ready.active { border-color: var(--pink); color: var(--pink); background: #ff55dd18; }
+    .geo-pill.all.active    { border-color: var(--border); color: var(--text); }
+
+    .geo-count {
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      color: var(--muted);
+    }
+    .geo-count strong { color: var(--text); }
+
+    /* ── GEO TABLE ── */
+    .geo-table-wrap {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      box-shadow: 3px 3px 0 #000;
+      overflow: hidden;
+    }
+    .geo-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .geo-table th {
+      background: var(--surface2);
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 18px;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    .geo-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    .geo-table th.sortable:hover { color: var(--text); }
+    .geo-table th.sort-active { color: var(--cyan); }
+    .sort-arrow { margin-left: 4px; font-size: 11px; }
+
+    .geo-table td {
+      padding: 13px 18px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .geo-table tr:last-child td { border-bottom: none; }
+    .geo-table tr:hover td { background: var(--surface2); }
+
+    .geo-product-link {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .geo-product-link:hover { color: var(--accent); }
+
+    /* Score number */
+    .geo-score-num {
+      font-family: var(--pixel-font);
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1;
+    }
+    .geo-score-num.poor      { color: var(--red);   text-shadow: 0 0 8px var(--red)44; }
+    .geo-score-num.needs-work{ color: var(--amber); text-shadow: 0 0 8px var(--amber)44; }
+    .geo-score-num.solid     { color: var(--cyan);  text-shadow: 0 0 8px var(--cyan)44; }
+    .geo-score-num.ai-ready  { color: var(--pink);  text-shadow: 0 0 8px var(--pink)44; }
+
+    /* Mini score bar under the number */
+    .geo-score-bar {
+      height: 3px;
+      border-radius: 2px;
+      margin-top: 4px;
+      width: 60px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .geo-score-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .poor .geo-score-fill      { background: var(--red); }
+    .needs-work .geo-score-fill{ background: var(--amber); }
+    .solid .geo-score-fill     { background: var(--cyan); }
+    .ai-ready .geo-score-fill  { background: var(--pink); }
+
+    /* Rating band pill */
+    .band-pill {
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      padding: 3px 12px;
+      border-radius: 3px;
+      border: 2px solid;
+      white-space: nowrap;
+    }
+    .band-pill.poor       { color: var(--red);   border-color: var(--red)66;   background: var(--red-dim); }
+    .band-pill.needs-work { color: var(--amber); border-color: var(--amber)66; background: var(--amber-dim); }
+    .band-pill.solid      { color: var(--cyan);  border-color: var(--cyan)66;  background: var(--cyan-dim); }
+    .band-pill.ai-ready   { color: var(--pink);  border-color: var(--pink)66;  background: #ff55dd18; }
+
+    /* Improvements expand/collapse */
+    .btn-expand-actions {
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      padding: 4px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+      box-shadow: 2px 2px 0 #000;
+    }
+    .btn-expand-actions:hover { border-color: var(--accent); color: var(--accent); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 #000; }
+    .btn-expand-actions.open  { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    .geo-actions-row td {
+      padding: 0 18px 14px 18px;
+    }
+    .geo-actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .geo-action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text);
+    }
+    .geo-action-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .geo-action-item.d-action .geo-action-icon { color: var(--amber); }
+    .geo-action-item.t-action .geo-action-icon { color: var(--accent); }
+    .geo-action-item.c-action .geo-action-icon { color: var(--pink); }
+    .geo-action-item.v-action .geo-action-icon { color: var(--cyan); }
+    .geo-action-item.m-action .geo-action-icon { color: var(--green); }
+
+    /* Pillar breakdown mini row */
+    .pillar-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+    .pillar-chip {
+      font-family: var(--pixel-font);
+      font-size: 13px;
+      padding: 1px 8px;
+      border-radius: 2px;
+      border: 1px solid;
+    }
+    .pillar-chip.score-100 { color: var(--green);  border-color: var(--green)44;  background: var(--green-dim); }
+    .pillar-chip.score-mid { color: var(--amber); border-color: var(--amber)44; background: var(--amber-dim); }
+    .pillar-chip.score-0   { color: var(--red);   border-color: var(--red)44;   background: var(--red-dim); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏄 DATA<span>SHRED</span></div>
+  <div id="store-switcher"></div>
+</header>
+
+<main>
+
+  <!-- CONNECT SCREEN -->
+  <div id="connect-screen">
+    <div>
+      <div class="connect-title">Product data,<br><em>shredded.</em></div>
+    </div>
+    <p class="connect-sub">Connect a Shopify store and we'll rip through your product data. No wax required. 🌊</p>
+    <div class="connect-form">
+      <input id="first-store" type="text" placeholder="yourstore.myshopify.com" />
+      <input id="first-token" type="password" placeholder="Admin API token (shpat_...)" />
+      <div id="connect-error" class="error-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="connectFirstStore()">Run Audit</button>
+    </div>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen">
+    <div id="loading-label" class="loading-label">Fetching products...</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="dash-header">
+      <div class="store-name">
+        <span id="dash-store-domain"></span>
+        <span id="dash-store-title"></span>
+      </div>
+      <button class="btn-rerun" onclick="rerunAudit()">↺ Re-run audit</button>
+    </div>
+
+    <!-- TAB NAV -->
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-btn-audit" onclick="switchTab('audit')">⚡ Audit Checks</button>
+      <button class="tab-btn" id="tab-btn-geo" onclick="switchTab('geo')">🌐 GEO Score</button>
+    </div>
+
+    <!-- AUDIT TAB -->
+    <div id="tab-audit" class="tab-panel" style="display:flex;flex-direction:column;gap:32px;">
+      <!-- stat strip -->
+      <div class="stat-strip">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-total">—</div>
+          <div class="stat-label">Active Products</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-variants">—</div>
+          <div class="stat-label">Total Variants</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-issues">—</div>
+          <div class="stat-label">Issues Found</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-clean">—</div>
+          <div class="stat-label">Clean Products</div>
+        </div>
+      </div>
+
+      <!-- summary cards -->
+      <div class="summary-grid" id="summary-grid"></div>
+
+      <!-- drilldown -->
+      <div id="drilldown">
+        <div class="drilldown-header">
+          <div class="drilldown-title" id="drilldown-title"></div>
+          <button class="btn-close-drill" onclick="closeDrilldown()">✕ Close</button>
+        </div>
+        <div id="drilldown-content"></div>
+      </div>
+    </div>
+
+    <!-- LOGIC EDITOR -->
+    <div id="logic-editor">
+      <button class="logic-editor-toggle" onclick="toggleLogicEditor()">
+        <span>⚙ Logic Editor</span>
+        <span class="logic-editor-sub">Edit the AI prompts that power each feature</span>
+        <span id="logic-editor-chevron">▼</span>
+      </button>
+      <div id="logic-editor-body">
+        <div class="logic-block">
+          <div class="logic-block-header">
+            <div>
+              <div class="logic-block-label">✦ Title Generator</div>
+              <div class="logic-block-desc">Instructions given to the AI when writing improved product titles. Product data (title, type, tags, description) is appended automatically.</div>
+            </div>
+            <button class="logic-reset-btn" onclick="resetLogic('title')">↺ Reset</button>
+          </div>
+          <textarea class="logic-textarea" id="logic-title" oninput="appConfig.titlePrompt = this.value"></textarea>
+        </div>
+        <div class="logic-block">
+          <div class="logic-block-header">
+            <div>
+              <div class="logic-block-label">✦ Description Writer</div>
+              <div class="logic-block-desc">Instructions for writing product descriptions. Product data is appended automatically.</div>
+            </div>
+            <button class="logic-reset-btn" onclick="resetLogic('desc')">↺ Reset</button>
+          </div>
+          <textarea class="logic-textarea" id="logic-desc" oninput="appConfig.descPrompt = this.value"></textarea>
+        </div>
+        <div class="logic-block">
+          <div class="logic-block-header">
+            <div>
+              <div class="logic-block-label">✦ Image Alt Text</div>
+              <div class="logic-block-desc">Instructions for generating alt text. Product data, filename, and filename clues are appended automatically.</div>
+            </div>
+            <button class="logic-reset-btn" onclick="resetLogic('altText')">↺ Reset</button>
+          </div>
+          <textarea class="logic-textarea" id="logic-altText" oninput="appConfig.altTextPrompt = this.value"></textarea>
+        </div>
+        <div class="logic-block" style="border-bottom:none;">
+          <div class="logic-block-header">
+            <div>
+              <div class="logic-block-label">✦ Category Suggestions</div>
+              <div class="logic-block-desc">Instructions for picking taxonomy categories. Product signals and the taxonomy options list are appended automatically.</div>
+            </div>
+            <button class="logic-reset-btn" onclick="resetLogic('category')">↺ Reset</button>
+          </div>
+          <textarea class="logic-textarea" id="logic-category" oninput="appConfig.categoryPrompt = this.value"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- GEO SCORE TAB -->
+    <div id="tab-geo" class="tab-panel" style="display:none;flex-direction:column;gap:20px;">
+      <div class="geo-toolbar">
+        <div class="geo-filter-wrap">
+          <span class="geo-filter-label">Filter:</span>
+          <div class="geo-filter-pills">
+            <button class="geo-pill all active" onclick="setGeoFilter('all')">All</button>
+            <button class="geo-pill poor"       onclick="setGeoFilter('poor')">Poor</button>
+            <button class="geo-pill needs-work" onclick="setGeoFilter('needs-work')">Needs work</button>
+            <button class="geo-pill solid"      onclick="setGeoFilter('solid')">Solid</button>
+            <button class="geo-pill ai-ready"   onclick="setGeoFilter('ai-ready')">AI-ready</button>
+          </div>
+        </div>
+        <div class="geo-count" id="geo-count"></div>
+      </div>
+      <div id="geo-table-wrap"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- SURF TOAST -->
+<div id="surf-toast"></div>
+
+<!-- IMAGE LIGHTBOX -->
+<div id="alt-lightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:#000c;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <img id="alt-lightbox-img" src="" alt="" style="max-width:90vw;max-height:80vh;object-fit:contain;border:2px solid var(--border);border-radius:3px;box-shadow:0 0 40px #0008;" />
+  <div id="alt-lightbox-caption" style="color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-align:center;max-width:600px;padding:0 20px;"></div>
+  <div style="color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;">click anywhere to close</div>
+</div>
+
+<!-- ADD STORE MODAL -->
+<div class="modal-overlay" id="add-store-modal">
+  <div class="modal">
+    <h3>Add a store</h3>
+    <p>Enter your store domain and an Admin API token with <strong>read_products</strong> permission.</p>
+    <input id="modal-store" type="text" placeholder="yourstore.myshopify.com" />
+    <input id="modal-token" type="password" placeholder="Admin API token (shpat_...)" />
+    <div id="modal-error" class="error-msg" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="addStore()">Connect & Audit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const stores = {}; // { domain: { token, name, results } }
+let activeStore = null;
+let activeDrilldown = null;
+let geoFilter = 'all';
+
+// ─── AMBIGUOUS TERMS ─────────────────────────────────────────────────────────
+const AMBIGUOUS_TERMS = [
+  'it', 'this', 'the item', 'the product', 'click here', 'here',
+  'this product', 'learn more', 'see more', 'find out', 'this thing',
+  'our product', 'the thing', 'it\'s', 'this one'
+];
+
+const VAGUE_TITLE_PATTERNS = [
+  /^product\s*\d*$/i, /^new\s+product/i, /^untitled/i, /^test/i,
+  /^item\s*\d*$/i, /^sample/i, /^draft/i
+];
+
+// ─── API PROXY ────────────────────────────────────────────────────────────────
+async function shopifyFetch(store, token, endpoint) {
+  const res = await fetch('/api/shopify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, endpoint })
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+async function shopifyGraphQL(store, token, query, variables = {}) {
+  const res = await fetch('/api/shopify/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, query, variables })
+  });
+  if (!res.ok) throw new Error(`GraphQL error: ${res.status}`);
+  return res.json();
+}
+
+// ─── FETCH ALL PRODUCTS (paginated) ──────────────────────────────────────────
+async function fetchAllProducts(store, token) {
+  let products = [];
+  let pageInfo = null;
+  let page = 0;
+
+  const query = `
+    query getProducts($cursor: String) {
+      products(first: 250, after: $cursor, query: "status:active") {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          title
+          handle
+          status
+          descriptionHtml
+          productType
+          vendor
+          category { name }
+          images(first: 10) { nodes { id src altText } }
+          media(first: 10) { nodes { mediaContentType ... on MediaImage { id image { src altText } } } }
+          options { name values }
+          variants(first: 100) {
+            nodes {
+              id
+              title
+              price
+              sku
+              selectedOptions { name value }
+            }
+          }
+          tags
+          metafields(first: 10) { nodes { namespace key type } }
+        }
+      }
+    }
+  `;
+
+  do {
+    page++;
+    setProgress(Math.min(10 + page * 8, 70), `Fetching products (page ${page})...`);
+    const variables = pageInfo ? { cursor: pageInfo.endCursor } : {};
+    const data = await shopifyGraphQL(store, token, query, variables);
+    if (data.errors) throw new Error(data.errors[0].message);
+    const { nodes, pageInfo: pi } = data.data.products;
+    products = products.concat(nodes);
+    pageInfo = pi;
+  } while (pageInfo?.hasNextPage);
+
+  return products;
+}
+
+// ─── AUDIT LOGIC ─────────────────────────────────────────────────────────────
+function auditProducts(products) {
+  const results = {
+    noImage: [],
+    lowImages: [],
+    altText: [],
+    noCategory: [],
+    noDescription: [],
+    shortDescription: [],
+    ambiguousDescription: [],
+    vagueTitle: [],
+    shortTitle: [],
+    unclearOptions: [],
+    missingSkus: [],
+    zeroPrice: [],
+  };
+
+  for (const p of products) {
+    const issues = [];
+
+    // IMAGES
+    const imgCount = p.images?.nodes?.length ?? 0;
+    if (imgCount === 0) results.noImage.push({ product: p, detail: 'No images at all' });
+    else if (imgCount === 1) results.lowImages.push({ product: p, detail: '1 image only' });
+
+    // ALT TEXT
+    const mediaNodes = (p.media?.nodes || []).filter(n => n.mediaContentType === 'IMAGE' && n.image);
+    const badAltCount = mediaNodes.filter(n => altQuality(n.image.altText) !== 'ok').length;
+    if (badAltCount > 0) results.altText.push({ product: p, detail: `${badAltCount} image${badAltCount !== 1 ? 's' : ''} missing alt text` });
+
+    // CATEGORY
+    const catName = p.category?.name;
+    console.log(`Product "${p.title}" category:`, JSON.stringify(p.category));
+    if (!catName || catName === 'Uncategorized') results.noCategory.push({ product: p, detail: 'No Shopify category set' });
+
+    // TITLE
+    const title = p.title?.trim() ?? '';
+    if (title.length < 20) results.shortTitle.push({ product: p, detail: `Title is only ${title.length} chars` });
+    if (VAGUE_TITLE_PATTERNS.some(r => r.test(title))) results.vagueTitle.push({ product: p, detail: `Vague title: "${title}"` });
+
+    // DESCRIPTION
+    const desc = (p.descriptionHtml ?? '').replace(/<[^>]+>/g, '').trim();
+    if (!desc || desc.length === 0) {
+      results.noDescription.push({ product: p, detail: 'No description' });
+    } else if (desc.length < 100) {
+      results.shortDescription.push({ product: p, detail: `Description is only ${desc.length} chars` });
+    }
+
+    const lowerDesc = desc.toLowerCase();
+    const foundTerms = AMBIGUOUS_TERMS.filter(t => {
+      const re = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return re.test(lowerDesc);
+    });
+    if (foundTerms.length > 0) {
+      results.ambiguousDescription.push({ product: p, detail: `Contains: ${foundTerms.slice(0,4).join(', ')}` });
+    }
+
+    // OPTIONS
+    for (const opt of (p.options ?? [])) {
+      const name = opt.name?.toLowerCase() ?? '';
+      if (name === 'title' || name === 'default title') continue; // single variant placeholder
+      for (const val of (opt.values ?? [])) {
+        // Flag very short option values (likely abbreviations)
+        if (val.length <= 2 && /[A-Z]{1,2}/.test(val)) {
+          results.unclearOptions.push({ product: p, detail: `Option "${opt.name}" has short value: "${val}"` });
+          break;
+        }
+      }
+    }
+
+    // VARIANTS
+    for (const v of (p.variants?.nodes ?? [])) {
+      if (!v.sku || v.sku.trim() === '') {
+        if (!results.missingSkus.find(r => r.product.id === p.id)) {
+          results.missingSkus.push({ product: p, detail: 'One or more variants missing SKU' });
+        }
+      }
+      if (!v.price || parseFloat(v.price) === 0) {
+        if (!results.zeroPrice.find(r => r.product.id === p.id)) {
+          results.zeroPrice.push({ product: p, detail: 'One or more variants priced at £0.00' });
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+// ─── RUN FULL AUDIT ───────────────────────────────────────────────────────────
+async function runAudit(store, token) {
+  if (_auditRunning) return;
+  _auditRunning = true;
+  showLoading();
+  setProgress(5, 'Connecting to store...');
+
+  // Invalidate any in-flight async work from previous session
+  _drilldownGen++;
+  _altTabGen++;
+
+  // Clear stale AI state so re-runs start fresh
+  Object.keys(categoryState).forEach(k => delete categoryState[k]);
+  Object.keys(titleState).forEach(k => delete titleState[k]);
+  Object.keys(descState).forEach(k => delete descState[k]);
+  Object.keys(altState).forEach(k => delete altState[k]);
+  altFilter = 'missing';
+
+  try {
+    // Validate connection
+    const shopData = await shopifyFetch(store, token, 'shop.json');
+    if (!shopData.shop) throw new Error('Could not connect. Check your domain and token.');
+    const shopName = shopData.shop.name;
+
+    setProgress(10, 'Fetching products...');
+    const products = await fetchAllProducts(store, token);
+
+    setProgress(80, 'Analysing data...');
+    const auditResults = auditProducts(products);
+
+    setProgress(100, 'Done');
+
+    // Store results
+    stores[store] = { token, name: shopName, products, results: auditResults };
+    activeStore = store;
+
+    setTimeout(() => {
+      _auditRunning = false;
+      renderDashboard(store);
+      showSurfToast('STOKED!');
+    }, 300);
+
+  } catch (err) {
+    _auditRunning = false;
+    hideLoading();
+    // Show connect screen again so user isn't left with a blank page
+    const cs = document.getElementById('connect-screen');
+    if (cs) cs.style.display = 'flex';
+    return { error: err.message };
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderDashboard(store) {
+  const { name, products, results } = stores[store];
+  const total = products.length;
+  const totalVariants = products.reduce((s, p) => s + (p.variants?.nodes?.length ?? 0), 0);
+
+  // Count unique products with any issue
+  const allIssuedIds = new Set(
+    Object.values(results).flatMap(arr => arr.map(r => r.product.id))
+  );
+  const issueCount = allIssuedIds.size;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-variants').textContent = totalVariants;
+  document.getElementById('stat-issues').textContent = issueCount;
+  document.getElementById('stat-clean').textContent = total - issueCount;
+  document.getElementById('dash-store-domain').textContent = store;
+  document.getElementById('dash-store-title').textContent = name;
+
+  const checks = [
+    { key: 'noImage', label: 'No Images', severity: 'bad' },
+    { key: 'lowImages', label: 'Only 1 Image', severity: 'warn' },
+    { key: 'altText', label: 'Image Alt Text', severity: 'warn' },
+    { key: 'noCategory', label: 'No Category', severity: 'warn' },
+    { key: 'vagueTitle', label: 'Vague Titles', severity: 'bad' },
+    { key: 'shortTitle', label: 'Short Titles', severity: 'warn' },
+    { key: 'noDescription', label: 'No Description', severity: 'bad' },
+    { key: 'shortDescription', label: 'Short Description', severity: 'warn' },
+    { key: 'ambiguousDescription', label: 'Ambiguous Language', severity: 'warn' },
+    { key: 'unclearOptions', label: 'Unclear Options', severity: 'warn' },
+    { key: 'missingSkus', label: 'Missing SKUs', severity: 'warn' },
+    { key: 'zeroPrice', label: 'Zero Price Variants', severity: 'bad' },
+  ];
+
+  const grid = document.getElementById('summary-grid');
+  grid.innerHTML = '';
+
+  for (const [idx, check] of checks.entries()) {
+    const count = results[check.key]?.length ?? 0;
+    const severity = count === 0 ? 'ok' : check.severity;
+    const card = document.createElement('div');
+    card.className = `summary-card ${severity}`;
+    card.dataset.key = check.key;
+    card.innerHTML = `
+      <div class="card-label">${check.label}</div>
+      <div class="card-count">${count}</div>
+      <div class="card-of">of ${total} products</div>
+    `;
+    card.style.animation = `wave-in 0.35s ease both`;
+    card.style.animationDelay = `${idx * 0.05}s`;
+    if (count > 0) {
+      card.onclick = () => showDrilldown(check.key, check.label, store);
+    }
+    grid.appendChild(card);
+  }
+
+  renderStoreSwitcher();
+  hideLoading();
+  document.getElementById('connect-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+  closeDrilldown();
+  // Reset to audit tab and clear geo sort state on each fresh render
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => { p.style.display = 'none'; });
+  document.getElementById('tab-btn-audit').classList.add('active');
+  document.getElementById('tab-audit').style.display = 'flex';
+  document.getElementById('tab-audit').style.flexDirection = 'column';
+  const _geoWrap = document.getElementById('geo-table-wrap');
+  delete _geoWrap.dataset.sortCol;
+  delete _geoWrap.dataset.sortDir;
+  geoFilter = 'all';
+  document.querySelectorAll('.geo-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('.geo-pill.all').classList.add('active');
+}
+
+// ─── CATEGORY STATE ───────────────────────────────────────────────────────────
+// { [productId]: { suggestions: [{id, name, confidence}], selected: id|null, applied: bool, appliedName: string } }
+const categoryState = {};
+
+// ─── AI CATEGORY SUGGESTION ───────────────────────────────────────────────────
+async function getSuggestions(product, store, token) {
+  const desc = (product.descriptionHtml || '').replace(/<[^>]+>/g, '').slice(0, 400);
+
+  // Step 1: Run parallel taxonomy searches — productType, combined title keywords, and each keyword individually
+  const stopwords = new Set(['the','out','of','in','and','for','with','this','that','from','into',
+    'your','our','new','set','kit','pro','one','two','stock','sale','limited','edition','bundle']);
+  const titleWords = product.title.toLowerCase()
+    .split(/[\s\-\/,&]+/)
+    .filter(w => w.length > 2 && !stopwords.has(w))
+    .slice(0, 4);
+
+  async function searchTaxonomy(query) {
+    const res = await fetch('/api/shopify/search-taxonomy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store, token, query })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return [];
+    return data.categories || [];
+  }
+
+  const searches = [];
+  if (product.productType) searches.push(searchTaxonomy(product.productType));
+  if (titleWords.length > 0) {
+    // Search combined keywords (catches multi-word product types)
+    searches.push(searchTaxonomy(titleWords.join(' ')));
+    // Also search each keyword individually — ensures product-type words like
+    // "Blanket" or "Bottle" aren't drowned out by thematic/brand words (e.g. fish names)
+    titleWords.forEach(word => searches.push(searchTaxonomy(word)));
+  }
+  if (searches.length === 0) throw new Error('No taxonomy results found for this product');
+  const results = await Promise.all(searches);
+
+  // Merge and deduplicate — productType results come first (higher priority)
+  const seenIds = new Set();
+  const merged = results.flat().filter(c => {
+    if (seenIds.has(c.id)) return false;
+    seenIds.add(c.id);
+    return true;
+  });
+
+  // Step 2: Prefer leaf nodes; fall back to all merged results if none are leaves
+  let candidates = merged.filter(c => c.isLeaf === true);
+  if (candidates.length === 0) candidates = merged;
+  if (candidates.length === 0) throw new Error('No taxonomy results found for this product');
+  candidates = candidates.slice(0, 20).map(c => ({ id: c.id, fullName: c.fullName || c.name }));
+
+  const taxonomyList = candidates.map(c => `${c.id} | ${c.fullName}`).join('\n');
+
+  const tags = (product.tags || []).slice(0, 20).join(', ');
+
+  const prompt = `${appConfig.categoryPrompt}
+
+PRODUCT SIGNALS:
+- Title: ${product.title}
+- Product type: ${product.productType || 'not set'}
+- Tags: ${tags || 'none'}
+- Vendor: ${product.vendor || 'not set'}
+- Description: ${desc || 'none'}
+
+TAXONOMY OPTIONS (use ONLY these exact IDs):
+${taxonomyList}
+
+Respond ONLY with valid JSON — no preamble, no markdown fences:
+{"suggestions":[{"id":"gid://shopify/TaxonomyCategory/xx","name":"Full Category Name","confidence":"High"}]}`;
+
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+  });
+
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  const parsed = JSON.parse(clean);
+  const seen = new Set();
+  const unique = parsed.suggestions.filter(s => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
+  return unique;
+}
+
+// ─── TITLE IMPROVEMENT STATE & AI ─────────────────────────────────────────────
+// { [productId]: { thinking, suggestion, applied, error } }
+const titleState = {};
+
+async function getAITitleSuggestion(product) {
+  const desc = (product.descriptionHtml || '').replace(/<[^>]+>/g, '').slice(0, 300);
+  const tags = (product.tags || []).slice(0, 15).join(', ');
+  const colors = [];
+  for (const opt of (product.options || [])) {
+    if (/colou?r|colour/i.test(opt.name)) colors.push(...opt.values);
+  }
+  const colorHint = colors.length ? `Colour variants available: ${colors.join(', ')}.` : '';
+
+  const prompt = `${appConfig.titlePrompt}
+
+Current title: ${product.title}
+Product type: ${product.productType || 'not set'}
+Tags: ${tags || 'none'}
+Description: ${desc || 'none'}
+${colorHint}`;
+
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  const text = (data.content?.[0]?.text || '').trim().replace(/^["']|["']$/g, '');
+  if (!text) throw new Error('No suggestion returned');
+  return text;
+}
+
+// ─── DESCRIPTION IMPROVEMENT STATE & AI ───────────────────────────────────────
+// { [productId]: { thinking, suggestion, applied, error } }
+const descState = {};
+
+async function getAIDescSuggestion(product) {
+  const existing = (product.descriptionHtml || '').replace(/<[^>]+>/g, '').trim().slice(0, 300);
+  const tags = (product.tags || []).slice(0, 15).join(', ');
+
+  const prompt = `${appConfig.descPrompt}
+
+Product title: ${product.title}
+Product type: ${product.productType || 'not set'}
+Tags: ${tags || 'none'}
+Existing description: ${existing || 'none'}`;
+
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  const text = (data.content?.[0]?.text || '').trim();
+  if (!text) throw new Error('No suggestion returned');
+  return text;
+}
+
+// ─── APPLY CATEGORY ───────────────────────────────────────────────────────────
+async function applyCategory(store, token, productId, categoryId) {
+  const res = await fetch('/api/shopify/set-category', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, productId, categoryId })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `Server error ${res.status}`);
+  }
+  return data;
+}
+
+// ─── APPLY PRODUCT UPDATE ─────────────────────────────────────────────────────
+async function applyProductUpdate(store, token, productId, fields) {
+  const res = await fetch('/api/shopify/update-product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store, token, productId, fields })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+  return data;
+}
+
+// ─── RENDER TITLE DRILLDOWN ───────────────────────────────────────────────────
+function renderTitleDrilldown(items, store) {
+  const myGen = ++_drilldownGen;
+  const { token } = stores[store];
+  const container = document.getElementById('drilldown-content');
+
+  function renderAll() {
+    if (_drilldownGen !== myGen) return;
+    const rows = items.map(({ product, detail }) => {
+      const pid = product.id;
+      const state = titleState[pid];
+      let actionsHtml = '';
+      if (!state) {
+        actionsHtml = `<button class="btn-ai-title" onclick="suggestTitle('${pid}')">✦ Suggest Title</button>`;
+      } else if (state.thinking) {
+        actionsHtml = `<div class="thinking-indicator"><div class="thinking-dot"></div> Thinking...</div>`;
+      } else if (state.applied) {
+        actionsHtml = `<span class="applied-badge">✓ Applied</span>`;
+      } else if (state.error) {
+        actionsHtml = `<span class="cat-error">${state.error}</span><button class="btn-ai-title" onclick="suggestTitle('${pid}')">Retry</button>`;
+      }
+
+      const safePid = pid.replace(/\//g, '-');
+      const suggestionHtml = state?.suggestion && !state.applied ? `
+        <div class="ai-text-panel">
+          <div class="suggestions-label">Suggested title:</div>
+          <input class="ai-title-input" id="title-input-${safePid}" value="${escHtml(state.suggestion)}" />
+          <div class="ai-text-actions">
+            <button class="btn-apply-text" onclick="applyTitle('${pid}')">Apply to Shopify →</button>
+            <button class="btn-copy-text" onclick="copyText('${pid}', 'title')">Copy</button>
+            <button class="btn-ai-title" onclick="suggestTitle('${pid}')">↺ Regenerate</button>
+          </div>
+        </div>` : '';
+
+      return `
+        <div class="category-row" id="title-row-${pid.replace(/\//g, '-')}">
+          <div class="category-row-main">
+            <div>
+              <div class="cat-product-name">${product.title}</div>
+              <div class="cat-product-meta">${detail} · ${product.productType || ''} ${product.tags?.slice(0,3).join(', ') ? '· ' + product.tags.slice(0,3).join(', ') : ''}</div>
+            </div>
+            <div class="cat-actions">${actionsHtml}</div>
+          </div>
+          ${suggestionHtml}
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="product-table" style="margin-top:0">${rows}</div>`;
+  }
+
+  window.suggestTitle = async (pid) => {
+    const product = items.find(i => i.product.id === pid)?.product;
+    if (!product) return;
+    titleState[pid] = { thinking: true };
+    renderAll();
+    try {
+      const suggestion = await getAITitleSuggestion(product);
+      titleState[pid] = { suggestion };
+    } catch(e) {
+      titleState[pid] = { error: e.message };
+    }
+    renderAll();
+  };
+
+  window.applyTitle = async (pid) => {
+    const state = titleState[pid];
+    if (!state?.suggestion) return;
+    const inputEl = document.getElementById('title-input-' + pid.replace(/\//g, '-'));
+    const title = inputEl ? inputEl.value.trim() : state.suggestion;
+    if (!title) return;
+    try {
+      await applyProductUpdate(store, token, pid, { title });
+      // Update in-memory product title
+      const storeData = stores[store];
+      const prod = storeData.products.find(p => p.id === pid);
+      if (prod) prod.title = title;
+      state.applied = true;
+      state.suggestion = title;
+      renderAll();
+      showSurfToast();
+    } catch(e) {
+      alert(`Failed: ${e.message}`);
+    }
+  };
+
+  window.copyText = (pid, type) => {
+    let text;
+    if (type === 'title') {
+      const inputEl = document.getElementById('title-input-' + pid.replace(/\//g, '-'));
+      text = inputEl ? inputEl.value : titleState[pid]?.suggestion;
+    } else {
+      text = descState[pid]?.suggestion;
+    }
+    if (text) navigator.clipboard.writeText(text).then(() => showSurfToast('COPIED!'));
+  };
+
+  renderAll();
+}
+
+// ─── RENDER DESCRIPTION DRILLDOWN ─────────────────────────────────────────────
+function renderDescDrilldown(items, store) {
+  const myGen = ++_drilldownGen;
+  const { token } = stores[store];
+  const container = document.getElementById('drilldown-content');
+
+  function renderAll() {
+    if (_drilldownGen !== myGen) return;
+    const bulkBar = `
+      <div class="bulk-bar" id="bulk-bar-desc">
+        <div class="bulk-bar-label"><strong>${items.length}</strong> products need description work</div>
+        <div class="bulk-bar-actions">
+          <button class="btn-suggest-all" id="btn-desc-all" onclick="suggestAllDesc()">✦ Write All</button>
+        </div>
+      </div>`;
+
+    const rows = items.map(({ product, detail }) => {
+      const pid = product.id;
+      const state = descState[pid];
+      let actionsHtml = '';
+      if (!state) {
+        actionsHtml = `<button class="btn-ai-desc" onclick="suggestDesc('${pid}')">✦ Write Description</button>`;
+      } else if (state.thinking) {
+        actionsHtml = `<div class="thinking-indicator"><div class="thinking-dot"></div> Writing...</div>`;
+      } else if (state.applied) {
+        actionsHtml = `<span class="applied-badge">✓ Applied</span>`;
+      } else if (state.error) {
+        actionsHtml = `<span class="cat-error">${state.error}</span><button class="btn-ai-desc" onclick="suggestDesc('${pid}')">Retry</button>`;
+      }
+
+      const suggestionHtml = state?.suggestion && !state.applied ? `
+        <div class="ai-text-panel">
+          <div class="suggestions-label">Suggested description:</div>
+          <div class="ai-text-result">${state.suggestion}</div>
+          <div class="ai-text-actions">
+            <button class="btn-apply-text" onclick="applyDesc('${pid}')">Apply to Shopify →</button>
+            <button class="btn-copy-text" onclick="copyDescText('${pid}')">Copy</button>
+            <button class="btn-ai-desc" onclick="suggestDesc('${pid}')">↺ Regenerate</button>
+          </div>
+        </div>` : '';
+
+      return `
+        <div class="category-row" id="desc-row-${pid.replace(/\//g, '-')}">
+          <div class="category-row-main">
+            <div>
+              <div class="cat-product-name">${product.title}</div>
+              <div class="cat-product-meta">${detail}</div>
+            </div>
+            <div class="cat-actions">${actionsHtml}</div>
+          </div>
+          ${suggestionHtml}
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `${bulkBar}<div class="product-table" style="margin-top:0">${rows}</div>`;
+  }
+
+  window.suggestDesc = async (pid) => {
+    const product = items.find(i => i.product.id === pid)?.product;
+    if (!product) return;
+    descState[pid] = { thinking: true };
+    renderAll();
+    try {
+      const suggestion = await getAIDescSuggestion(product);
+      descState[pid] = { suggestion };
+    } catch(e) {
+      descState[pid] = { error: e.message };
+    }
+    renderAll();
+  };
+
+  window.applyDesc = async (pid) => {
+    const state = descState[pid];
+    if (!state?.suggestion) return;
+    const product = items.find(i => i.product.id === pid)?.product;
+    const existing = (product?.descriptionHtml || '').replace(/<[^>]+>/g, '').trim();
+    // Append new paragraphs to existing description
+    const newHtml = (existing ? existing + '\n\n' : '') + state.suggestion.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    try {
+      await applyProductUpdate(store, token, pid, { descriptionHtml: newHtml });
+      if (product) product.descriptionHtml = newHtml;
+      state.applied = true;
+      renderAll();
+      showSurfToast();
+    } catch(e) {
+      alert(`Failed: ${e.message}`);
+    }
+  };
+
+  window.copyDescText = (pid) => {
+    const text = descState[pid]?.suggestion;
+    if (text) navigator.clipboard.writeText(text).then(() => showSurfToast('COPIED!'));
+  };
+
+  window.suggestAllDesc = async () => {
+    const myBulkGen = _drilldownGen;
+    const btn = document.getElementById('btn-desc-all');
+    const pending = items.filter(({ product }) => !descState[product.id]);
+    if (btn) { btn.disabled = true; btn.textContent = `Writing... (0/${pending.length})`; }
+    for (let i = 0; i < pending.length; i++) {
+      if (_drilldownGen !== myBulkGen) break; // user navigated away — stop
+      const { product } = pending[i];
+      descState[product.id] = { thinking: true };
+      try {
+        const suggestion = await getAIDescSuggestion(product);
+        descState[product.id] = { suggestion };
+      } catch(e) {
+        descState[product.id] = { error: e.message };
+      }
+      const b = document.getElementById('btn-desc-all');
+      if (b) b.textContent = `Writing... (${i+1}/${pending.length})`;
+      renderAll();
+    }
+    renderAll();
+  };
+
+  renderAll();
+}
+
+// ─── IMAGE ALT TEXT MODULE ────────────────────────────────────────────────────
+
+const altState = {}; // { [productId_mediaId]: { thinking, suggestion, applied, error } }
+let altFilter = 'missing'; // 'missing' | 'all'
+
+// ─── EDITABLE LOGIC CONFIG ────────────────────────────────────────────────────
+const _defaultConfig = {
+  titlePrompt:
+`You are a Shopify product listing expert. Suggest ONE improved product title.
+
+RULES:
+- The new title should be descriptive, specific, and SEO-friendly.
+- Use the product type, tags, description, and any colour options to make it specific.
+- If there are colour variants, consider whether to include the primary colour in the title.
+- Aim for 40-80 characters. Do not use ALL CAPS. No quotes around the title.
+- Return ONLY the new title text, nothing else. No explanation, no punctuation at the end.`,
+
+  descPrompt:
+`You are a Shopify product copywriter. Write 2 short, punchy description paragraphs for this product.
+
+RULES:
+- Write in plain English, no HTML tags, no bullet points.
+- Be specific and benefit-led — focus on what makes this product useful or appealing.
+- Each paragraph should be 2-3 sentences. Separate with a blank line.
+- Do NOT repeat the product title verbatim as the first sentence.
+- Do NOT add a heading or intro. Just the two paragraphs.
+- Tone: confident, clear, slightly enthusiastic but not hypey.`,
+
+  altTextPrompt:
+`You are an e-commerce image alt text specialist. Write concise, descriptive alt text for a product image.
+
+STRICT RULES:
+1. 60-125 characters (count carefully)
+2. Do NOT start with "image of", "photo of", "picture of"
+3. Include the product name or type naturally
+4. Describe what is shown: angle, styling, key visible features
+5. Use filename clues to understand the shot type and perspective
+6. Return ONLY the alt text - no quotes, no explanation`,
+
+  categoryPrompt:
+`You are a Shopify product taxonomy expert. Your job is to assign the single most accurate Shopify taxonomy category to a product, with up to 2 alternatives.
+
+STRICT RULES - violating any of these makes your response useless:
+1. Only use IDs that appear EXACTLY in the Taxonomy options list. Never invent, abbreviate or modify an ID.
+2. Every suggestion must have a DIFFERENT id. Never repeat the same category twice.
+3. Always pick the MOST SPECIFIC (deepest/leaf) category. A surfboard should be "Surfboards", not "Water Sports".
+4. Consider ALL product signals equally: title, product type, tags, AND description. Tags and product type often reveal the true category when the title is generic.
+5. If only 1 category clearly fits, return only 1 suggestion - do not pad with weak guesses.
+6. Confidence levels: "High" = obvious match, "Medium" = likely match, "Low" = possible but uncertain.`,
+};
+const appConfig = { titlePrompt: _defaultConfig.titlePrompt, descPrompt: _defaultConfig.descPrompt, altTextPrompt: _defaultConfig.altTextPrompt, categoryPrompt: _defaultConfig.categoryPrompt };
+
+// ── Generation counters: incremented each render so stale async callbacks are no-ops ──
+let _drilldownGen = 0; // guards all drilldown renderAll calls
+let _altTabGen    = 0; // guards alt text tab renderGrid calls
+let _auditRunning = false; // prevents concurrent runAudit calls
+
+function setAltFilter(f) {
+  altFilter = f;
+  if (activeStore) renderAltTextDrilldown(activeStore);
+}
+
+// Extract filename from image src URL (strip path and query string)
+function imgFilename(src) {
+  try { return decodeURIComponent(src.split('/').pop().split('?')[0]); } catch { return ''; }
+}
+
+// Analyse filename for useful contextual clues
+function filenameClues(filename) {
+  const f = filename.toLowerCase();
+  const checks = [
+    ['front',     'front view'],
+    ['back',      'back view'],
+    ['side',      'side view'],
+    ['detail',    'detail / close-up'],
+    ['close',     'close-up'],
+    ['zoom',      'close-up'],
+    ['lifestyle', 'lifestyle shot'],
+    ['flatlay',   'flat lay'],
+    ['flat_lay',  'flat lay'],
+    ['flat-lay',  'flat lay'],
+    ['flat',      'flat lay'],
+    ['model',     'worn by model'],
+    ['worn',      'worn by model'],
+    ['hanger',    'on hanger'],
+    ['hanging',   'on hanger'],
+    ['hand',      'hand held'],
+    ['hero',      'hero shot'],
+    ['feature',   'feature highlight'],
+    ['pack',      'packaging'],
+    ['inbox',     'in box'],
+    ['group',     'group shot'],
+    ['bundle',    'bundle / group'],
+    ['inside',    'interior view'],
+    ['interior',  'interior view'],
+    ['texture',   'texture close-up'],
+    ['colour',    'colour variant'],
+    ['color',     'colour variant'],
+    ['swatch',    'colour swatch'],
+  ];
+  const found = [];
+  for (const [key, label] of checks) {
+    if (f.includes(key) && !found.includes(label)) found.push(label);
+  }
+  return found;
+}
+
+// Determine alt text quality
+function altQuality(altText) {
+  if (!altText || !altText.trim()) return 'missing';
+  const t = altText.trim();
+  if (t.length < 20) return 'poor';
+  // Looks like a filename (no spaces, lots of underscores/hyphens)
+  if (!/\s/.test(t) && (t.split('_').length > 2 || t.split('-').length > 2)) return 'poor';
+  // Generic/useless alt text
+  const generic = /^(image|photo|picture|img|product|item|untitled|\d+)$/i;
+  if (generic.test(t)) return 'poor';
+  return 'ok';
+}
+
+// Build list of { product, mediaNode } pairs needing attention
+function collectAltItems(store) {
+  const products = stores[store]?.products || [];
+  const items = [];
+  for (const product of products) {
+    const mediaNodes = (product.media?.nodes || []).filter(n => n.mediaContentType === 'IMAGE' && n.image);
+    for (const node of mediaNodes) {
+      const quality = altQuality(node.image.altText);
+      items.push({ product, mediaNode: node, quality });
+    }
+  }
+  return items;
+}
+
+async function getAIAltText(product, mediaNode) {
+  const desc = (product.descriptionHtml || '').replace(/<[^>]+>/g, '').slice(0, 300);
+  const tags = (product.tags || []).slice(0, 15).join(', ');
+  const filename = imgFilename(mediaNode.image.src);
+  const clues = filenameClues(filename);
+  const clueText = clues.length ? clues.join(', ') : 'none';
+  const prompt = `${appConfig.altTextPrompt}
+
+Product title: ${product.title}
+Product type: ${product.productType || 'not set'}
+Tags: ${tags || 'none'}
+Description: ${desc || 'none'}
+Image filename: ${filename}
+Filename clues (shot type/angle): ${clueText}
+Current alt text: ${mediaNode.image.altText || 'none'}`;
+
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'AI error');
+  let text = (data.content?.[0]?.text || '').trim().replace(/^["']|["']$/g, '');
+  return text;
+}
+
+async function applyAltText(productId, mediaId, altText) {
+  const { token } = stores[activeStore];
+  const res = await fetch('/api/shopify/update-image-alt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ store: activeStore, token, productId, mediaId, altText })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+  return data;
+}
+
+function altStateKey(productId, mediaId) {
+  return `${productId}__${mediaId}`;
+}
+
+function openLightbox(src, caption) {
+  const lb = document.getElementById('alt-lightbox');
+  document.getElementById('alt-lightbox-img').src = src;
+  document.getElementById('alt-lightbox-caption').textContent = caption;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('alt-lightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderAltTextDrilldown(store) {
+  const myGen = ++_altTabGen;
+  const container = document.getElementById('drilldown-content');
+  const allItems = collectAltItems(store);
+  const filteredItems = altFilter === 'missing'
+    ? allItems.filter(i => i.quality !== 'ok')
+    : allItems;
+
+  const missingCount = allItems.filter(i => i.quality !== 'ok').length;
+  const missingActive = altFilter === 'missing' ? 'active' : '';
+  const allActive    = altFilter === 'all'     ? 'active' : '';
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:8px;">
+      <div class="alt-toolbar">
+        <div class="geo-filter-wrap">
+          <span class="geo-filter-label">Show:</span>
+          <div class="geo-filter-pills">
+            <button class="geo-pill all ${missingActive}" onclick="setAltFilter('missing')">Missing / Poor</button>
+            <button class="geo-pill solid ${allActive}" onclick="setAltFilter('all')">All Images</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="geo-count">${missingCount} image${missingCount !== 1 ? 's' : ''} need${missingCount === 1 ? 's' : ''} alt text (${allItems.length} total)</div>
+          ${filteredItems.length > 0 ? `<button class="btn-primary" onclick="altGenerateAll()" style="font-family:var(--pixel-font);font-size:15px;padding:7px 18px;">✦ Generate All</button>` : ''}
+        </div>
+      </div>
+      <div class="alt-grid" id="alt-grid-inner"></div>
+    </div>`;
+
+  const grid = document.getElementById('alt-grid-inner');
+
+  if (filteredItems.length === 0) {
+    grid.innerHTML = `<div style="color:var(--green);font-family:var(--pixel-font);font-size:18px;padding:32px;text-align:center;">✓ All images have quality alt text!</div>`;
+    return;
+  }
+
+  function renderGrid() {
+    if (_altTabGen !== myGen) return;
+    const cards = filteredItems.map(({ product, mediaNode, quality }) => {
+      const pid = product.id;
+      const mid = mediaNode.id;
+      const key = altStateKey(pid, mid);
+      const state = altState[key];
+      const src = mediaNode.image.src;
+      const filename = imgFilename(src);
+      const clues = filenameClues(filename);
+      const safePid = pid.replace(/\//g, '-');
+      const safeMid = mid.replace(/\//g, '-');
+      const cardId = `alt-card-${safePid}-${safeMid}`;
+      const adminUrl = `https://${store}/admin/products/${pid.split('/').pop()}`;
+
+      const qualityBadge = quality === 'missing'
+        ? `<span class="alt-status-missing">✗ no alt text</span>`
+        : quality === 'poor'
+          ? `<span class="alt-status-poor">⚠ poor alt text</span>`
+          : `<span class="alt-status-ok">✓ has alt text</span>`;
+
+      const currentAltHtml = mediaNode.image.altText
+        ? `<div class="alt-current">"${escHtml(mediaNode.image.altText)}"</div>` : '';
+
+      const cluesHtml = clues.length
+        ? `<div class="alt-filename-clues">${clues.map(c => `<span class="alt-clue-tag">📍 ${c}</span>`).join('')}</div>` : '';
+
+      let actionsHtml = '';
+      let suggestionPanel = '';
+
+      if (!state) {
+        actionsHtml = `<button class="btn-alt-gen" onclick="altGenerate('${pid}','${mid}')">✦ Generate Alt Text</button>`;
+      } else if (state.thinking) {
+        actionsHtml = `<div class="thinking-indicator"><div class="thinking-dot"></div> Thinking...</div>`;
+      } else if (state.applied) {
+        actionsHtml = `<span class="alt-applied-badge">✓ Applied</span>`;
+        suggestionPanel = `<div class="alt-suggestion-panel"><div class="alt-suggestion-label">Applied alt text:</div><div class="alt-current" style="border-left:2px solid var(--green)">"${escHtml(state.suggestion)}"</div></div>`;
+      } else if (state.error) {
+        actionsHtml = `<span style="color:var(--red);font-size:11px;font-family:'DM Mono',monospace;">${escHtml(state.error)}</span><button class="btn-alt-gen" onclick="altGenerate('${pid}','${mid}')">↺ Retry</button>`;
+      } else if (state.suggestion) {
+        actionsHtml = `<button class="btn-alt-gen" onclick="altGenerate('${pid}','${mid}')">↺ Regen</button>`;
+        const charCount = state.suggestion.length;
+        const charClass = charCount < 50 || charCount > 125 ? 'warn' : 'ok';
+        suggestionPanel = `
+          <div class="alt-suggestion-panel">
+            <div class="alt-suggestion-label">Suggested alt text:</div>
+            <textarea class="alt-suggestion-input" id="alt-input-${safePid}-${safeMid}" oninput="altUpdateCharCount('${safePid}','${safeMid}')">${escHtml(state.suggestion)}</textarea>
+            <div class="alt-char-count ${charClass}" id="alt-chars-${safePid}-${safeMid}">${charCount} chars${charCount < 50 ? ' (too short)' : charCount > 125 ? ' (too long)' : ' ✓'}</div>
+            <div class="alt-card-actions">
+              <button class="btn-apply" onclick="altApply('${pid}','${mid}')">Apply to Shopify →</button>
+              <button class="btn-copy-text" onclick="altCopy('${safePid}','${safeMid}')">Copy</button>
+            </div>
+          </div>`;
+      }
+
+      return `
+        <div class="alt-card" id="${cardId}">
+          <div class="alt-thumb-wrap" onclick="openLightbox('${src}','${escHtml(product.title)} — ${escHtml(filename)}')">
+            <img src="${src}" alt="${escHtml(mediaNode.image.altText || '')}" loading="lazy" />
+            <div class="alt-thumb-overlay">🔍</div>
+          </div>
+          <div class="alt-card-body">
+            <div class="alt-card-product"><a href="${adminUrl}" target="_blank">${escHtml(product.title)}</a></div>
+            <div class="alt-card-filename">📁 ${escHtml(filename)}</div>
+            ${cluesHtml}
+            ${currentAltHtml}
+            <div class="alt-card-actions">
+              ${qualityBadge}
+              ${actionsHtml}
+            </div>
+          </div>
+          ${suggestionPanel}
+        </div>`;
+    }).join('');
+
+    grid.innerHTML = cards;
+  }
+
+  window.altGenerate = async (pid, mid) => {
+    const key = altStateKey(pid, mid);
+    const item = filteredItems.find(i => i.product.id === pid && i.mediaNode.id === mid);
+    if (!item) return;
+    altState[key] = { thinking: true };
+    renderGrid();
+    try {
+      const suggestion = await getAIAltText(item.product, item.mediaNode);
+      altState[key] = { suggestion };
+    } catch(e) {
+      altState[key] = { error: e.message };
+    }
+    renderGrid();
+  };
+
+  window.altApply = async (pid, mid) => {
+    const key = altStateKey(pid, mid);
+    const state = altState[key];
+    if (!state?.suggestion) return;
+    const safePid = pid.replace(/\//g, '-');
+    const safeMid = mid.replace(/\//g, '-');
+    const inputEl = document.getElementById(`alt-input-${safePid}-${safeMid}`);
+    const altText = inputEl ? inputEl.value.trim() : state.suggestion;
+    if (!altText) return;
+    try {
+      await applyAltText(pid, mid, altText);
+      // Update in-memory data
+      const product = stores[activeStore].products.find(p => p.id === pid);
+      if (product) {
+        const mediaNode = product.media?.nodes?.find(n => n.id === mid);
+        if (mediaNode?.image) mediaNode.image.altText = altText;
+        const imgNode = product.images?.nodes?.find(n => n.src === mediaNode?.image?.src);
+        if (imgNode) imgNode.altText = altText;
+      }
+      state.applied = true;
+      state.suggestion = altText;
+      renderGrid();
+      showSurfToast();
+    } catch(e) {
+      alert(`Failed: ${e.message}`);
+    }
+  };
+
+  window.altCopy = (safePid, safeMid) => {
+    const inputEl = document.getElementById(`alt-input-${safePid}-${safeMid}`);
+    if (inputEl) navigator.clipboard.writeText(inputEl.value).then(() => showSurfToast('COPIED!'));
+  };
+
+  window.altUpdateCharCount = (safePid, safeMid) => {
+    const inputEl = document.getElementById(`alt-input-${safePid}-${safeMid}`);
+    const countEl = document.getElementById(`alt-chars-${safePid}-${safeMid}`);
+    if (!inputEl || !countEl) return;
+    const len = inputEl.value.length;
+    countEl.className = `alt-char-count ${len < 50 || len > 125 ? 'warn' : 'ok'}`;
+    countEl.textContent = `${len} chars${len < 50 ? ' (too short)' : len > 125 ? ' (too long)' : ' ✓'}`;
+  };
+
+  window.altGenerateAll = async () => {
+    const myBulkGen = _altTabGen;
+    const ungenerated = filteredItems.filter(({ product, mediaNode }) => {
+      const key = altStateKey(product.id, mediaNode.id);
+      return !altState[key];
+    });
+    for (const { product, mediaNode } of ungenerated) {
+      const key = altStateKey(product.id, mediaNode.id);
+      altState[key] = { thinking: true };
+    }
+    renderGrid();
+    for (const { product, mediaNode } of ungenerated) {
+      if (_altTabGen !== myBulkGen) break; // user navigated away — stop
+      const key = altStateKey(product.id, mediaNode.id);
+      try {
+        const suggestion = await getAIAltText(product, mediaNode);
+        altState[key] = { suggestion };
+      } catch(e) {
+        altState[key] = { error: e.message };
+      }
+      renderGrid();
+    }
+  };
+
+  renderGrid();
+}
+
+// ─── SURF TOAST ───────────────────────────────────────────────────────────────
+const SURF_PHRASES = ['GNARLY!', 'TUBULAR!', 'COWABUNGA!', 'SHREDDED!', 'RADICAL!', 'STOKED!', 'HANG TEN!'];
+function showSurfToast(msg) {
+  const toast = document.getElementById('surf-toast');
+  const text = msg || SURF_PHRASES[Math.floor(Math.random() * SURF_PHRASES.length)];
+  toast.textContent = text;
+  toast.classList.remove('show');
+  void toast.offsetWidth; // reflow to restart animation
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2100);
+}
+
+// ─── RENDER CATEGORY DRILLDOWN ────────────────────────────────────────────────
+function renderCategoryDrilldown(items, store) {
+  const myGen = ++_drilldownGen;
+  const { token } = stores[store];
+  const pendingCount = () => Object.values(categoryState).filter(s => s.selected && !s.applied).length;
+
+  const container = document.getElementById('drilldown-content');
+
+  function renderAll() {
+    if (_drilldownGen !== myGen) return;
+    const bulkBar = `
+      <div class="bulk-bar" id="bulk-bar">
+        <div class="bulk-bar-label"><strong>${items.length}</strong> products without a category</div>
+        <div class="bulk-bar-actions">
+          <button class="btn-suggest-all" id="btn-suggest-all" onclick="suggestAll()">✦ Suggest All</button>
+          <button class="btn-accept-all" id="btn-accept-all" onclick="acceptAll()" ${pendingCount() === 0 ? 'disabled' : ''}>
+            Apply All Selections ${pendingCount() > 0 ? `(${pendingCount()})` : ''}
+          </button>
+        </div>
+      </div>
+    `;
+
+    const rows = items.map(({ product }) => {
+      const pid = product.id;
+      const state = categoryState[pid];
+
+      let actionsHtml = '';
+      if (!state) {
+        actionsHtml = `<button class="btn-suggest" onclick="suggestOne('${pid}')">✦ Suggest</button>`;
+      } else if (state.thinking) {
+        actionsHtml = `<div class="thinking-indicator"><div class="thinking-dot"></div> Thinking...</div>`;
+      } else if (state.applied) {
+        actionsHtml = `<span class="applied-badge">✓ ${state.appliedName || 'Applied'}</span>`;
+      } else if (state.error) {
+        actionsHtml = `<span class="cat-error">${state.error}</span><button class="btn-suggest" onclick="suggestOne('${pid}')">Retry</button>`;
+      } else if (state.suggestions) {
+        const hasSelected = !!state.selected;
+        actionsHtml = hasSelected
+          ? `<button class="btn-apply" onclick="applySingle('${pid}')">Apply Selected →</button>`
+          : '';
+      }
+
+      const suggestionsHtml = state?.suggestions && !state.applied ? `
+        <div class="suggestions-panel">
+          <div class="suggestions-label">Suggested categories — pick one:</div>
+          <div class="suggestion-options">
+            ${state.suggestions.map(s => `
+              <button class="suggestion-btn ${state.selected === s.id ? 'selected' : ''}"
+                onclick="selectSuggestion('${escHtml(pid)}', '${escHtml(s.id)}')">
+                <span class="suggestion-name">${escHtml(s.name)}</span>
+                <span class="suggestion-confidence">${escHtml(s.confidence)} confidence</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      return `
+        <div class="category-row" id="cat-row-${pid.replace(/\//g, '-')}">
+          <div class="category-row-main">
+            <div>
+              <div class="cat-product-name">${product.title}</div>
+              <div class="cat-product-meta">${product.vendor || ''} ${product.productType ? '· ' + product.productType : ''}</div>
+            </div>
+            <div class="cat-actions">${actionsHtml}</div>
+          </div>
+          ${suggestionsHtml}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      ${bulkBar}
+      <div class="product-table" style="margin-top: 0">${rows}</div>
+    `;
+  }
+
+  // Expose functions to window scope for onclick handlers
+  window.suggestOne = async (pid) => {
+    const product = items.find(i => i.product.id === pid)?.product;
+    if (!product) return;
+    categoryState[pid] = { thinking: true };
+    renderAll();
+    try {
+      const suggestions = await getSuggestions(product, store, token);
+      categoryState[pid] = { suggestions, selected: suggestions[0]?.id || null };
+    } catch(e) {
+      categoryState[pid] = { error: e.message };
+    }
+    renderAll();
+  };
+
+  window.selectSuggestion = (pid, categoryId) => {
+    if (categoryState[pid]) {
+      categoryState[pid].selected = categoryId;
+      renderAll();
+    }
+  };
+
+  window.applySingle = async (pid) => {
+    const state = categoryState[pid];
+    if (!state?.selected) return;
+    try {
+      await applyCategory(store, token, pid, state.selected);
+      state.applied = true;
+      state.appliedName = state.suggestions?.find(s => s.id === state.selected)?.name || '';
+      stores[store].results.noCategory = stores[store].results.noCategory.filter(i => i.product.id !== pid);
+      renderAll();
+      showSurfToast();
+      renderDashboard(store);
+      showDrilldown('noCategory', 'No Category', store);
+    } catch(e) {
+      alert(`Failed to apply: ${e.message}`);
+    }
+  };
+
+  window.suggestAll = async () => {
+    const myBulkGen = _drilldownGen;
+    const unsuggestedItems = items.filter(({ product }) => !categoryState[product.id]);
+    document.getElementById('btn-suggest-all').disabled = true;
+    document.getElementById('btn-suggest-all').textContent = `Thinking... (0/${unsuggestedItems.length})`;
+
+    for (let i = 0; i < unsuggestedItems.length; i++) {
+      if (_drilldownGen !== myBulkGen) break; // user navigated away — stop
+      const { product } = unsuggestedItems[i];
+      categoryState[product.id] = { thinking: true };
+      try {
+        const suggestions = await getSuggestions(product, store, token);
+        categoryState[product.id] = { suggestions, selected: suggestions[0]?.id || null };
+      } catch(e) {
+        categoryState[product.id] = { suggestions: [], selected: null };
+      }
+      document.getElementById('btn-suggest-all') && (document.getElementById('btn-suggest-all').textContent = `Thinking... (${i+1}/${unsuggestedItems.length})`);
+      renderAll();
+    }
+    renderAll();
+  };
+
+  window.acceptAll = async () => {
+    const myBulkGen = _drilldownGen;
+    const toApply = items.filter(({ product }) => {
+      const s = categoryState[product.id];
+      return s?.selected && !s?.applied;
+    });
+
+    const btn = document.getElementById('btn-accept-all');
+    if (btn) { btn.disabled = true; btn.textContent = `Applying...`; }
+
+    for (const { product } of toApply) {
+      if (_drilldownGen !== myBulkGen) break; // user navigated away — stop
+      const state = categoryState[product.id];
+      try {
+        await applyCategory(store, token, product.id, state.selected);
+        state.applied = true;
+        state.appliedName = state.suggestions?.find(s => s.id === state.selected)?.name || '';
+        stores[store].results.noCategory = stores[store].results.noCategory.filter(i => i.product.id !== product.id);
+        renderAll();
+      } catch(e) {
+        console.error(`Failed for ${product.title}:`, e.message);
+      }
+    }
+
+    if (_drilldownGen === myBulkGen) {
+      renderDashboard(store);
+      showDrilldown('noCategory', 'No Category', store);
+    }
+  };
+
+  renderAll();
+}
+
+// ─── SHOW DRILLDOWN ───────────────────────────────────────────────────────────
+function showDrilldown(key, label, store) {
+  if (activeDrilldown === key) { closeDrilldown(); return; }
+  activeDrilldown = key;
+
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.summary-card[data-key="${key}"]`)?.classList.add('active');
+
+  const items = stores[store].results[key] ?? [];
+  const drilldown = document.getElementById('drilldown');
+  document.getElementById('drilldown-title').textContent = `${label} — ${items.length} product${items.length !== 1 ? 's' : ''}`;
+
+  if (items.length === 0) {
+    document.getElementById('drilldown-content').innerHTML = '<div class="empty-state">No issues found ✓</div>';
+  } else if (key === 'altText') {
+    renderAltTextDrilldown(store);
+  } else if (key === 'noCategory') {
+    renderCategoryDrilldown(items, store);
+  } else if (key === 'shortTitle' || key === 'vagueTitle') {
+    renderTitleDrilldown(items, store);
+  } else if (key === 'noDescription' || key === 'shortDescription') {
+    renderDescDrilldown(items, store);
+  } else {
+    const rows = items.map(({ product, detail }) => `
+      <tr>
+        <td class="product-title-cell">
+          <a href="https://${store}/admin/products/${product.id.split('/').pop()}" target="_blank">
+            ${product.title}
+          </a>
+        </td>
+        <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:12px">${product.vendor || '—'}</td>
+        <td><span class="issue-tag amber">${detail}</span></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('drilldown-content').innerHTML = `
+      <div class="product-table">
+        <table>
+          <thead><tr><th>Product</th><th>Vendor</th><th>Issue</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  drilldown.style.display = 'flex';
+  drilldown.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeDrilldown() {
+  activeDrilldown = null;
+  document.getElementById('drilldown').style.display = 'none';
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+}
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => { p.style.display = 'none'; });
+  document.getElementById(`tab-btn-${tab}`).classList.add('active');
+  const panel = document.getElementById(`tab-${tab}`);
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  if (tab === 'geo' && activeStore) renderGeoTab(activeStore);
+}
+
+// ─── GEO SCORE ────────────────────────────────────────────────────────────────
+function scoreProduct(p) {
+  // D — Description quality
+  const rawDesc = (p.descriptionHtml ?? '').replace(/<[^>]+>/g, '').trim();
+  let D;
+  if (!rawDesc) {
+    D = 0;
+  } else {
+    const hasAmbig = AMBIGUOUS_TERMS.some(t => {
+      const re = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return re.test(rawDesc);
+    });
+    D = (rawDesc.length >= 200 && !hasAmbig) ? 100 : 50;
+  }
+
+  // T — Title clarity
+  const title = (p.title ?? '').trim();
+  let T;
+  if (!title || title.length < 10 || VAGUE_TITLE_PATTERNS.some(r => r.test(title))) {
+    T = 0;
+  } else if (title.length < 20) {
+    T = 50;
+  } else {
+    T = 100;
+  }
+
+  // C — Native category
+  const catName = p.category?.name;
+  const C = (!catName || catName === 'Uncategorized') ? 0 : 100;
+
+  // V — Variant completeness
+  const variants = p.variants?.nodes ?? [];
+  const isSingleDefault = variants.length === 1 &&
+    (variants[0].selectedOptions ?? []).some(o => o.name === 'Title' && o.value === 'Default Title');
+  let V;
+  if (variants.length === 0) {
+    V = 0;
+  } else if (isSingleDefault) {
+    const dv = variants[0];
+    V = (dv.sku && dv.sku.trim() && parseFloat(dv.price) > 0) ? 100 : 50;
+  } else {
+    const missingPrice = variants.filter(v => !v.price || parseFloat(v.price) === 0).length;
+    const missingSku = variants.filter(v => !v.sku || v.sku.trim() === '').length;
+    const hasAbbrev = (p.options ?? []).some(opt => {
+      if ((opt.name ?? '').toLowerCase() === 'title') return false;
+      return (opt.values ?? []).some(val => /^[A-Z0-9]{1,4}$/.test(val));
+    });
+    if (missingPrice === 0 && missingSku === 0 && !hasAbbrev) {
+      V = 100;
+    } else if (missingPrice === variants.length || missingSku === variants.length) {
+      V = 0;
+    } else {
+      V = 50;
+    }
+  }
+
+  // M — Media
+  const imgs = p.images?.nodes ?? [];
+  const imgCount = imgs.length;
+  const allHaveAlt = imgCount > 0 && imgs.every(img => img.altText && img.altText.trim() !== '');
+  const anyHaveAlt = imgs.some(img => img.altText && img.altText.trim() !== '');
+  let M;
+  if (imgCount === 0) M = 0;
+  else if (imgCount >= 3 && allHaveAlt) M = 100;
+  else if (anyHaveAlt) M = 75;
+  else M = 50;
+
+  const total = Math.round(D * 0.25 + T * 0.20 + C * 0.20 + V * 0.20 + M * 0.15);
+  const band = total <= 39 ? 'poor' : total <= 59 ? 'needs-work' : total <= 79 ? 'solid' : 'ai-ready';
+
+  const actions = [];
+  if (D < 100) actions.push({ cls: 'd-action', icon: '✍️', text: "Write a description of at least 200 characters that answers what the product is, who it's for, and why they'd want it" });
+  if (T < 100) actions.push({ cls: 't-action', icon: '🏷️', text: 'Rewrite title to be specific and at least 20 characters (e.g. include product type and key attribute)' });
+  if (C === 0)  actions.push({ cls: 'c-action', icon: '🗂️', text: 'Set the native Shopify product category (product_taxonomy field)' });
+  if (V < 100) actions.push({ cls: 'v-action', icon: '🔢', text: "Ensure all variants are priced, have SKUs, and option labels are written out in full (e.g. 'Black' not 'BLK')" });
+  if (M < 100) actions.push({ cls: 'm-action', icon: '🖼️', text: 'Add at least 3 images with alt text describing what is shown' });
+
+  return { D, T, C, V, M, total, band, actions };
+}
+
+const BAND_LABELS = { 'poor': 'Poor', 'needs-work': 'Needs work', 'solid': 'Solid', 'ai-ready': 'AI-ready' };
+const PILLAR_NAMES = { D: 'Description', T: 'Title', C: 'Category', V: 'Variants', M: 'Media' };
+
+function escHtml(str) {
+  return (str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function setGeoFilter(band) {
+  geoFilter = band;
+  document.querySelectorAll('.geo-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.geo-pill.${band}`).classList.add('active');
+  if (activeStore) renderGeoTab(activeStore);
+}
+
+function renderGeoTab(store) {
+  const { products } = stores[store];
+  const scored = products
+    .map(p => ({ product: p, ...scoreProduct(p) }))
+    .sort((a, b) => a.total - b.total);
+  const filtered = geoFilter === 'all' ? scored : scored.filter(s => s.band === geoFilter);
+
+  document.getElementById('geo-count').innerHTML =
+    `<strong>${filtered.length}</strong> of <strong>${scored.length}</strong> product${scored.length !== 1 ? 's' : ''}`;
+
+  const wrap = document.getElementById('geo-table-wrap');
+  if (scored.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No products found.</div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    wrap.innerHTML = '<div class="empty-state" style="padding:32px 20px">No products in this band.</div>';
+    return;
+  }
+
+  const sortCol = wrap.dataset.sortCol || 'score';
+  const sortDir = wrap.dataset.sortDir || 'asc';
+
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortCol === 'score') cmp = a.total - b.total;
+    else if (sortCol === 'title') cmp = a.product.title.localeCompare(b.product.title);
+    else if (sortCol === 'band') {
+      const o = { 'poor': 0, 'needs-work': 1, 'solid': 2, 'ai-ready': 3 };
+      cmp = o[a.band] - o[b.band];
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const arrow = col => sortCol !== col
+    ? '<span class="sort-arrow">↕</span>'
+    : `<span class="sort-arrow">${sortDir === 'asc' ? '↑' : '↓'}</span>`;
+
+  const rows = sortedFiltered.map((s, i) => {
+    const pid = s.product.id.split('/').pop();
+    const adminUrl = `https://${store}/admin/products/${pid}`;
+    const actionsId = `geo-act-${i}`;
+
+    const pillarsHtml = ['D', 'T', 'C', 'V', 'M'].map(key => {
+      const score = s[key];
+      const cls = score === 100 ? 'score-100' : score === 0 ? 'score-0' : 'score-mid';
+      return `<span class="pillar-chip ${cls}" title="${PILLAR_NAMES[key]}: ${score}">${key}:${score}</span>`;
+    }).join('');
+
+    const actionsHtml = s.actions.length === 0
+      ? '<div style="color:var(--green);font-family:var(--pixel-font);font-size:14px">✓ No improvements needed</div>'
+      : s.actions.map(a => `
+          <div class="geo-action-item ${a.cls}">
+            <span class="geo-action-icon">${a.icon}</span>
+            <span>${escHtml(a.text)}</span>
+          </div>`).join('');
+
+    const btnLabel = `${s.actions.length} action${s.actions.length !== 1 ? 's' : ''} ▾`;
+    return `
+      <tr>
+        <td>
+          <a class="geo-product-link" href="${adminUrl}" target="_blank" rel="noopener">${escHtml(s.product.title)}</a>
+          <div class="pillar-row" style="margin-top:5px">${pillarsHtml}</div>
+        </td>
+        <td>
+          <div class="geo-score-num ${s.band}">${s.total}</div>
+          <div class="geo-score-bar ${s.band}"><div class="geo-score-fill" style="width:${s.total}%"></div></div>
+        </td>
+        <td><span class="band-pill ${s.band}">${BAND_LABELS[s.band]}</span></td>
+        <td>
+          ${s.actions.length > 0
+            ? `<button class="btn-expand-actions" onclick="toggleGeoActions('${actionsId}',this)">${escHtml(btnLabel)}</button>`
+            : '<span style="color:var(--green);font-family:var(--pixel-font);font-size:14px">✓ All good</span>'}
+        </td>
+      </tr>
+      <tr class="geo-actions-row" id="${actionsId}" style="display:none">
+        <td colspan="4"><div class="geo-actions-list">${actionsHtml}</div></td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table class="geo-table">
+      <thead><tr>
+        <th class="sortable${sortCol === 'title' ? ' sort-active' : ''}" onclick="sortGeoTable('title')">Product ${arrow('title')}</th>
+        <th class="sortable${sortCol === 'score' ? ' sort-active' : ''}" onclick="sortGeoTable('score')">GEO Score ${arrow('score')}</th>
+        <th class="sortable${sortCol === 'band' ? ' sort-active' : ''}" onclick="sortGeoTable('band')">Rating ${arrow('band')}</th>
+        <th>Improvements</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  wrap.dataset.sortCol = sortCol;
+  wrap.dataset.sortDir = sortDir;
+}
+
+function sortGeoTable(col) {
+  const wrap = document.getElementById('geo-table-wrap');
+  const cur = wrap.dataset.sortCol || 'score';
+  const dir = wrap.dataset.sortDir || 'asc';
+  wrap.dataset.sortCol = col;
+  wrap.dataset.sortDir = (cur === col && dir === 'asc') ? 'desc' : 'asc';
+  if (activeStore) renderGeoTab(activeStore);
+}
+
+function toggleGeoActions(id, btn) {
+  const row = document.getElementById(id);
+  const isOpen = row.style.display !== 'none';
+  row.style.display = isOpen ? 'none' : 'table-row';
+  btn.classList.toggle('open', !isOpen);
+  btn.textContent = btn.textContent.replace(isOpen ? '▴' : '▾', isOpen ? '▾' : '▴');
+}
+
+// ─── STORE SWITCHER ───────────────────────────────────────────────────────────
+function renderStoreSwitcher() {
+  const sw = document.getElementById('store-switcher');
+  sw.innerHTML = '';
+  for (const domain of Object.keys(stores)) {
+    const pill = document.createElement('button');
+    pill.className = `store-pill${domain === activeStore ? ' active' : ''}`;
+    pill.textContent = domain.replace('.myshopify.com', '');
+    pill.onclick = () => switchStore(domain);
+    sw.appendChild(pill);
+  }
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn-add-store';
+  addBtn.textContent = '+ Add Store';
+  addBtn.onclick = () => openModal();
+  sw.appendChild(addBtn);
+}
+
+function switchStore(domain) {
+  activeStore = domain;
+  renderDashboard(domain);
+}
+
+// ─── CONNECT FLOWS ────────────────────────────────────────────────────────────
+async function connectFirstStore() {
+  const store = document.getElementById('first-store').value.trim();
+  const token = document.getElementById('first-token').value.trim();
+  const errEl = document.getElementById('connect-error');
+  errEl.style.display = 'none';
+
+  if (!store || !token) { showError(errEl, 'Please enter both store domain and token.'); return; }
+
+  document.querySelector('#connect-screen .btn-primary').disabled = true;
+  const result = await runAudit(store, token);
+  document.querySelector('#connect-screen .btn-primary').disabled = false;
+
+  if (result?.error) showError(errEl, result.error);
+}
+
+async function addStore() {
+  const store = document.getElementById('modal-store').value.trim();
+  const token = document.getElementById('modal-token').value.trim();
+  const errEl = document.getElementById('modal-error');
+  errEl.style.display = 'none';
+
+  if (!store || !token) { showError(errEl, 'Please enter both fields.'); return; }
+
+  closeModal();
+  const result = await runAudit(store, token);
+  if (result?.error) alert(`Error: ${result.error}`);
+}
+
+async function rerunAudit() {
+  if (!activeStore) return;
+  const { token } = stores[activeStore];
+  await runAudit(activeStore, token);
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('add-store-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('add-store-modal').classList.remove('open');
+  document.getElementById('modal-store').value = '';
+  document.getElementById('modal-token').value = '';
+  document.getElementById('modal-error').style.display = 'none';
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function showLoading() {
+  document.getElementById('connect-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loading-screen').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading-screen').style.display = 'none';
+}
+function setProgress(pct, label) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('loading-label').textContent = label;
+}
+function showError(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ─── PIXEL PRESS HANDLER ─────────────────────────────────────────────────────
+document.addEventListener('mousedown', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.disabled) return;
+  btn.classList.add('pixel-press');
+  btn.addEventListener('animationend', () => btn.classList.remove('pixel-press'), { once: true });
+});
+
+// ─── RANDOM SURF GREETING ─────────────────────────────────────────────────────
+// Small surprise: random greeting appears after audit completes
+const _origRender = renderDashboard;
+// Override to show surf toast on first audit load
+let _firstAudit = true;
+const _renderDashboard = renderDashboard;
+// ─── LOGIC EDITOR ────────────────────────────────────────────────────────────
+function toggleLogicEditor() {
+  const body = document.getElementById('logic-editor-body');
+  const chevron = document.getElementById('logic-editor-chevron');
+  const isOpen = body.classList.contains('open');
+  if (!isOpen) populateLogicEditor();
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+}
+
+function populateLogicEditor() {
+  document.getElementById('logic-title').value    = appConfig.titlePrompt;
+  document.getElementById('logic-desc').value     = appConfig.descPrompt;
+  document.getElementById('logic-altText').value  = appConfig.altTextPrompt;
+  document.getElementById('logic-category').value = appConfig.categoryPrompt;
+}
+
+function resetLogic(key) {
+  const map = {
+    title:    { field: 'titlePrompt',    el: 'logic-title' },
+    desc:     { field: 'descPrompt',     el: 'logic-desc' },
+    altText:  { field: 'altTextPrompt',  el: 'logic-altText' },
+    category: { field: 'categoryPrompt', el: 'logic-category' },
+  };
+  const { field, el } = map[key];
+  appConfig[field] = _defaultConfig[field];
+  document.getElementById(el).value = _defaultConfig[field];
+}
+
+// ── Global keyboard shortcuts ──────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const lb = document.getElementById('alt-lightbox');
+    if (lb && lb.style.display !== 'none') { closeLightbox(); return; }
+    const modal = document.getElementById('add-store-modal');
+    if (modal && modal.classList.contains('open')) { closeModal(); return; }
+    if (activeDrilldown) { closeDrilldown(); return; }
+  }
+});
+
+window.addEventListener('load', () => {
+  // 5s after page load, do a subtle glitch on logo
+  setTimeout(() => {
+    const logo = document.querySelector('.logo');
+    if (logo) {
+      logo.style.animation = 'none';
+      void logo.offsetWidth;
+      logo.style.animation = 'glitch 0.4s ease both';
+    }
+  }, 5000);
+});
+</script>
+</body>
+</html>
